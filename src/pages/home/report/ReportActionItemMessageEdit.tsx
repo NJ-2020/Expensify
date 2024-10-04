@@ -66,9 +66,6 @@ type ReportActionItemMessageEditProps = {
     /** ReportID that holds the comment we're editing */
     reportID: string;
 
-    /** Returns ID of the original report from which the given reportAction is first created. */
-    originalReportID: string;
-
     /** PolicyID of the policy the report belongs to */
     policyID?: string;
 
@@ -95,18 +92,7 @@ const shouldUseForcedSelectionRange = shouldUseEmojiPickerSelection();
 const draftMessageVideoAttributeCache = new Map<string, string>();
 
 function ReportActionItemMessageEdit(
-    {
-        report,
-        action,
-        draftMessage,
-        reportID,
-        originalReportID,
-        policyID,
-        index,
-        isGroupPolicyReport,
-        isEditComposerFullSize,
-        shouldDisableEmojiPicker = false,
-    }: ReportActionItemMessageEditProps,
+    {report, action, draftMessage, reportID, policyID, index, isGroupPolicyReport, isEditComposerFullSize, shouldDisableEmojiPicker = false}: ReportActionItemMessageEditProps,
     forwardedRef: ForwardedRef<TextInput | HTMLTextAreaElement | undefined>,
 ) {
     const [preferredSkinTone] = useOnyx(ONYXKEYS.PREFERRED_EMOJI_SKIN_TONE, {initialValue: CONST.EMOJI_DEFAULT_SKIN_TONE});
