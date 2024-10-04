@@ -113,6 +113,10 @@ function ReportScreen({route, currentReportID = '', navigation}: ReportScreenPro
 
     const [modal] = useOnyx(ONYXKEYS.MODAL);
     const [isComposerFullSize] = useOnyx(`${ONYXKEYS.COLLECTION.REPORT_IS_COMPOSER_FULL_SIZE}${reportIDFromRoute}`, {initialValue: false});
+    const [isEditComposerFullSize] = useOnyx(`${ONYXKEYS.COLLECTION.REPORT_ACTIONS_DRAFTS}${reportIDFromRoute}`, {
+        selector: (draftMessagesForReport) => Object.values(draftMessagesForReport ?? {}).some((draftMessage) => draftMessage?.isEditComposerFullSize),
+        initialValue: false,
+    });
     const [accountManagerReportID] = useOnyx(ONYXKEYS.ACCOUNT_MANAGER_REPORT_ID, {initialValue: ''});
     const [userLeavingStatus] = useOnyx(`${ONYXKEYS.COLLECTION.REPORT_USER_IS_LEAVING_ROOM}${reportIDFromRoute}`, {initialValue: false});
     const [reportOnyx, reportResult] = useOnyx(`${ONYXKEYS.COLLECTION.REPORT}${reportIDFromRoute}`, {allowStaleData: true});
@@ -793,7 +797,7 @@ function ReportScreen({route, currentReportID = '', navigation}: ReportScreenPro
                                     </>
                                 )}
 
-                                {isCurrentReportLoadedFromOnyx ? (
+                                {isCurrentReportLoadedFromOnyx && !isEditComposerFullSize ? (
                                     <ReportFooter
                                         onComposerFocus={() => setIsComposerFocus(true)}
                                         onComposerBlur={() => setIsComposerFocus(false)}

@@ -5,6 +5,7 @@ import {findNodeHandle, InteractionManager, Keyboard, View} from 'react-native';
 import type {MeasureInWindowOnSuccessCallback, NativeSyntheticEvent, TextInput, TextInputFocusEventData, TextInputKeyPressEventData, TextInputScrollEventData} from 'react-native';
 import {useFocusedInputHandler} from 'react-native-keyboard-controller';
 import {useOnyx} from 'react-native-onyx';
+import {OnyxEntry} from 'react-native-onyx';
 import {useSharedValue} from 'react-native-reanimated';
 import type {Emoji} from '@assets/emojis/types';
 import type {MeasureParentContainerAndCursorCallback} from '@components/AutoCompleteSuggestions/types';
@@ -41,6 +42,7 @@ import * as ComposerActions from '@userActions/Composer';
 import * as EmojiPickerAction from '@userActions/EmojiPickerAction';
 import * as InputFocus from '@userActions/InputFocus';
 import * as Report from '@userActions/Report';
+import * as User from '@userActions/User';
 import CONST from '@src/CONST';
 import ONYXKEYS from '@src/ONYXKEYS';
 import type * as OnyxTypes from '@src/types/onyx';
@@ -52,6 +54,9 @@ import Suggestions from './ReportActionCompose/Suggestions';
 import shouldUseEmojiPickerSelection from './shouldUseEmojiPickerSelection';
 
 type ReportActionItemMessageEditProps = {
+    /** Report for this action */
+    report: OnyxEntry<OnyxTypes.Report>;
+
     /** All the data of the action */
     action: OnyxTypes.ReportAction;
 
@@ -60,6 +65,9 @@ type ReportActionItemMessageEditProps = {
 
     /** ReportID that holds the comment we're editing */
     reportID: string;
+
+    /** Returns ID of the original report from which the given reportAction is first created. */
+    originalReportID: string;
 
     /** PolicyID of the policy the report belongs to */
     policyID?: string;
@@ -72,6 +80,9 @@ type ReportActionItemMessageEditProps = {
 
     /** Whether report is from group policy */
     isGroupPolicyReport: boolean;
+
+    /** Whether the composer is in full size */
+    isEditComposerFullSize: boolean;
 };
 
 // native ids
@@ -84,10 +95,22 @@ const shouldUseForcedSelectionRange = shouldUseEmojiPickerSelection();
 const draftMessageVideoAttributeCache = new Map<string, string>();
 
 function ReportActionItemMessageEdit(
-    {action, draftMessage, reportID, policyID, index, isGroupPolicyReport, shouldDisableEmojiPicker = false}: ReportActionItemMessageEditProps,
+    {
+        report,
+        action,
+        draftMessage,
+        reportID,
+        originalReportID,
+        policyID,
+        index,
+        isGroupPolicyReport,
+        isEditComposerFullSize,
+        shouldDisableEmojiPicker = false,
+    }: ReportActionItemMessageEditProps,
     forwardedRef: ForwardedRef<TextInput | HTMLTextAreaElement | undefined>,
 ) {
     const [preferredSkinTone] = useOnyx(ONYXKEYS.PREFERRED_EMOJI_SKIN_TONE, {initialValue: CONST.EMOJI_DEFAULT_SKIN_TONE});
+    const [blockedFromConcierge] = useOnyx(ONYXKEYS.NVP_BLOCKED_FROM_CONCIERGE);
     const theme = useTheme();
     const styles = useThemeStyles();
     const StyleUtils = useStyleUtils();
@@ -117,7 +140,6 @@ function ReportActionItemMessageEdit(
         isVisible: false,
     });
     const [onyxFocused, setOnyxFocused] = useState<boolean>(false);
-
     const textInputRef = useRef<(HTMLTextAreaElement & TextInput) | null>(null);
     const isFocusedRef = useRef<boolean>(false);
     const draftRef = useRef(draft);
@@ -125,6 +147,10 @@ function ReportActionItemMessageEdit(
     // The ref to check whether the comment saving is in progress
     const isCommentPendingSaved = useRef(false);
 
+    const [isFullComposerAvailable, setIsFullComposerAvailable] = useState(isEditComposerFullSize);
+    const includesConcierge = useMemo(() => ReportUtils.chatIncludesConcierge({participants: report?.participants}), [report?.participants]);
+    const userBlockedFromConcierge = useMemo(() => User.isBlockedFromConcierge(blockedFromConcierge), [blockedFromConcierge]);
+    const isBlockedFromConcierge = useMemo(() => includesConcierge && userBlockedFromConcierge, [includesConcierge, userBlockedFromConcierge]);
     useEffect(() => {
         draftMessageVideoAttributeCache.clear();
 
@@ -265,6 +291,10 @@ function ReportActionItemMessageEdit(
             emojisPresentBefore.current = emojis;
 
             setDraft(newDraft);
+
+            if (newDraftInput.length === 0 && isEditComposerFullSize) {
+                Report.setReportActionDraftComposerFullSize(reportID, action, false);
+            }
 
             if (newDraftInput !== newDraft) {
                 const position = Math.max((selection?.end ?? 0) + (newDraft.length - draftRef.current.length), cursorPosition ?? 0);
@@ -460,11 +490,10 @@ function ReportActionItemMessageEdit(
             hideSuggestionMenu();
         }
     }, [isFocused, hideSuggestionMenu]);
-
     return (
         <>
             <View
-                style={[styles.chatItemMessage, styles.flexRow]}
+                style={[styles.chatItemMessage, styles.flexRow, isEditComposerFullSize && styles.chatItemFullComposeRow]}
                 ref={containerRef}
             >
                 <View
@@ -473,10 +502,55 @@ function ReportActionItemMessageEdit(
                         styles.flexRow,
                         styles.flex1,
                         styles.chatItemComposeBox,
+                        isEditComposerFullSize && styles.chatItemFullComposeRow,
                         hasExceededMaxCommentLength && styles.borderColorDanger,
                     ]}
                 >
-                    <View style={[styles.justifyContentEnd, styles.mb1]}>
+                    <View
+                        style={[styles.dFlex, styles.flexColumn, isFullComposerAvailable || isEditComposerFullSize ? styles.justifyContentBetween : styles.justifyContentCenter, styles.mb1]}
+                    >
+                        {isEditComposerFullSize && (
+                            <Tooltip text={translate('reportActionCompose.collapse')}>
+                                <PressableWithFeedback
+                                    onPress={(e) => {
+                                        e?.preventDefault();
+                                        Report.setReportActionDraftComposerFullSize(reportID, action, false);
+                                    }}
+                                    // Keep focus on the composer when Collapse button is clicked.
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    style={styles.composerSizeButton}
+                                    disabled={isBlockedFromConcierge}
+                                    role={CONST.ROLE.BUTTON}
+                                    accessibilityLabel={translate('reportActionCompose.collapse')}
+                                >
+                                    <Icon
+                                        fill={theme.icon}
+                                        src={Expensicons.Collapse}
+                                    />
+                                </PressableWithFeedback>
+                            </Tooltip>
+                        )}
+                        {!isEditComposerFullSize && isFullComposerAvailable && (
+                            <Tooltip text={translate('reportActionCompose.expand')}>
+                                <PressableWithFeedback
+                                    onPress={(e) => {
+                                        e?.preventDefault();
+                                        Report.setReportActionDraftComposerFullSize(reportID, action, true);
+                                    }}
+                                    // Keep focus on the composer when Expand button is clicked.
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    style={styles.composerSizeButton}
+                                    disabled={isBlockedFromConcierge}
+                                    role={CONST.ROLE.BUTTON}
+                                    accessibilityLabel={translate('reportActionCompose.expand')}
+                                >
+                                    <Icon
+                                        fill={theme.icon}
+                                        src={Expensicons.Expand}
+                                    />
+                                </PressableWithFeedback>
+                            </Tooltip>
+                        )}
                         <Tooltip text={translate('common.cancel')}>
                             <PressableWithFeedback
                                 onPress={deleteDraft}
@@ -496,7 +570,7 @@ function ReportActionItemMessageEdit(
                             </PressableWithFeedback>
                         </Tooltip>
                     </View>
-                    <View style={[StyleUtils.getContainerComposeStyles(), styles.textInputComposeBorder]}>
+                    <View style={[StyleUtils.getContainerComposeStyles(), styles.textInputComposeBorder, isEditComposerFullSize && styles.chatItemFullComposeRow]}>
                         <Composer
                             multiline
                             ref={(el: TextInput & HTMLTextAreaElement) => {
@@ -513,7 +587,7 @@ function ReportActionItemMessageEdit(
                             onKeyPress={triggerSaveOrCancel}
                             value={draft}
                             maxLines={shouldUseNarrowLayout ? CONST.COMPOSER.MAX_LINES_SMALL_SCREEN : CONST.COMPOSER.MAX_LINES} // This is the same that slack has
-                            style={[styles.textInputCompose, styles.flex1, styles.bgTransparent]}
+                            style={[styles.textInputCompose, isEditComposerFullSize ? styles.textInputFullCompose : styles.textInputCollapseCompose, styles.flex1, styles.bgTransparent]}
                             onFocus={() => {
                                 setIsFocused(true);
                                 InteractionManager.runAfterInteractions(() => {
@@ -547,6 +621,8 @@ function ReportActionItemMessageEdit(
                             onSelectionChange={(e) => setSelection(e.nativeEvent.selection)}
                             isGroupPolicyReport={isGroupPolicyReport}
                             shouldCalculateCaretPosition
+                            setIsFullComposerAvailable={setIsFullComposerAvailable}
+                            isComposerFullSize={isEditComposerFullSize}
                             onScroll={onSaveScrollAndHideSuggestionMenu}
                         />
                     </View>

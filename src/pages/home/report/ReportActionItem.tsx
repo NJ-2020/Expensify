@@ -163,12 +163,11 @@ function ReportActionItem({
     const reportID = report?.reportID ?? '';
     // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     const originalReportID = useMemo(() => ReportUtils.getOriginalReportID(reportID, action) || '-1', [reportID, action]);
-    const [draftMessage] = useOnyx(`${ONYXKEYS.COLLECTION.REPORT_ACTIONS_DRAFTS}${originalReportID}`, {
-        selector: (draftMessagesForReport) => {
-            const matchingDraftMessage = draftMessagesForReport?.[action.reportActionID];
-            return typeof matchingDraftMessage === 'string' ? matchingDraftMessage : matchingDraftMessage?.message;
-        },
+    const [draftActionReport] = useOnyx(`${ONYXKEYS.COLLECTION.REPORT_ACTIONS_DRAFTS}${originalReportID}`, {
+        selector: (draftMessagesForReport) => draftMessagesForReport?.[action.reportActionID],
     });
+    const draftMessage = useMemo(() => (typeof draftActionReport === 'string' ? draftActionReport : draftActionReport?.message), [draftActionReport]);
+    const isEditComposerFullSize = useMemo(() => draftActionReport?.isEditComposerFullSize ?? false, [draftActionReport]);
     const [iouReport] = useOnyx(`${ONYXKEYS.COLLECTION.REPORT}${ReportActionsUtils.getIOUReportIDFromReportActionPreview(action) ?? -1}`);
     const [emojiReactions] = useOnyx(`${ONYXKEYS.COLLECTION.REPORT_ACTIONS_REACTIONS}${action.reportActionID}`);
     const [userWallet] = useOnyx(ONYXKEYS.USER_WALLET);
@@ -184,7 +183,6 @@ function ReportActionItem({
     const [isContextMenuActive, setIsContextMenuActive] = useState(() => ReportActionContextMenu.isActiveReportAction(action.reportActionID));
     const [isEmojiPickerActive, setIsEmojiPickerActive] = useState<boolean | undefined>();
     const [isPaymentMethodPopoverActive, setIsPaymentMethodPopoverActive] = useState<boolean | undefined>();
-
     const [isHidden, setIsHidden] = useState(false);
     const [moderationDecision, setModerationDecision] = useState<OnyxTypes.DecisionName>(CONST.MODERATION.MODERATOR_DECISION_APPROVED);
     const reactionListRef = useContext(ReactionListContext);
@@ -728,6 +726,7 @@ function ReportActionItem({
                             <ReportActionItemMessageEdit
                                 action={action}
                                 draftMessage={draftMessage}
+                                report={report}
                                 reportID={reportID}
                                 policyID={report?.policyID}
                                 index={index}
@@ -736,7 +735,9 @@ function ReportActionItem({
                                     (ReportUtils.chatIncludesConcierge(report) && User.isBlockedFromConcierge(blockedFromConcierge)) ||
                                     ReportUtils.isArchivedRoom(report, reportNameValuePairs)
                                 }
+                                originalReportID={originalReportID}
                                 isGroupPolicyReport={!!report?.policyID && report.policyID !== CONST.POLICY.ID_FAKE}
+                                isEditComposerFullSize={!!isEditComposerFullSize}
                             />
                         )}
                     </AttachmentContext.Provider>
@@ -811,7 +812,7 @@ function ReportActionItem({
         const content = renderItemContent(hovered || isContextMenuActive || isEmojiPickerActive, isWhisper, hasErrors);
 
         if (draftMessage !== undefined) {
-            return <ReportActionItemDraft>{content}</ReportActionItemDraft>;
+            return <ReportActionItemDraft isEditComposerFullSize={!!isEditComposerFullSize}>{content}</ReportActionItemDraft>;
         }
 
         if (!displayAsGroup) {
@@ -904,7 +905,11 @@ function ReportActionItem({
         <PressableWithSecondaryInteraction
             ref={popoverAnchorRef}
             onPress={draftMessage === undefined ? onPress : undefined}
-            style={[action.pendingAction === CONST.RED_BRICK_ROAD_PENDING_ACTION.DELETE && !isDeletedParentAction ? styles.pointerEventsNone : styles.pointerEventsAuto]}
+            style={[
+                action.pendingAction === CONST.RED_BRICK_ROAD_PENDING_ACTION.DELETE && !isDeletedParentAction ? styles.pointerEventsNone : styles.pointerEventsAuto,
+                isEditComposerFullSize && styles.chatItemFullComposeRow,
+            ]}
+            wrapperStyle={[isEditComposerFullSize && styles.chatItemFullComposeRow]}
             onPressIn={() => shouldUseNarrowLayout && DeviceCapabilities.canUseTouchScreen() && ControlSelection.block()}
             onPressOut={() => ControlSelection.unblock()}
             onSecondaryInteraction={showPopover}
@@ -918,7 +923,7 @@ function ReportActionItem({
                 isDisabled={draftMessage !== undefined}
             >
                 {(hovered) => (
-                    <View style={highlightedBackgroundColorIfNeeded}>
+                    <View style={[highlightedBackgroundColorIfNeeded, isEditComposerFullSize && styles.chatItemFullComposeRow]}>
                         {shouldDisplayNewMarker && (!shouldUseThreadDividerLine || !isFirstVisibleReportAction) && <UnreadActionIndicator reportActionID={action.reportActionID} />}
                         {shouldDisplayContextMenu && (
                             <MiniReportActionContextMenu
@@ -937,10 +942,13 @@ function ReportActionItem({
                             />
                         )}
                         <View
-                            style={StyleUtils.getReportActionItemStyle(
-                                hovered || isWhisper || isContextMenuActive || !!isEmojiPickerActive || draftMessage !== undefined || isPaymentMethodPopoverActive,
-                                draftMessage === undefined && !!onPress,
-                            )}
+                            style={[
+                                StyleUtils.getReportActionItemStyle(
+                                    hovered || isWhisper || isContextMenuActive || !!isEmojiPickerActive || draftMessage !== undefined || isPaymentMethodPopoverActive,
+                                    draftMessage === undefined && !!onPress,
+                                ),
+                                isEditComposerFullSize && styles.chatItemFullComposeRow,
+                            ]}
                         >
                             <OfflineWithFeedback
                                 onClose={() => {
@@ -956,6 +964,8 @@ function ReportActionItem({
                                 }
                                 shouldHideOnDelete={!ReportActionsUtils.isThreadParentMessage(action, reportID)}
                                 errors={linkedTransactionRouteError ?? ErrorUtils.getLatestErrorMessageField(action as ErrorUtils.OnyxDataWithErrors)}
+                                style={isEditComposerFullSize && styles.chatItemFullComposeRow}
+                                contentContainerStyle={isEditComposerFullSize && styles.chatItemFullComposeRow}
                                 errorRowStyles={[styles.ml10, styles.mr2]}
                                 needsOffscreenAlphaCompositing={ReportActionsUtils.isMoneyRequestAction(action)}
                                 shouldDisableStrikeThrough

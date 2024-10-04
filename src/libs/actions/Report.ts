@@ -1710,6 +1710,11 @@ function saveReportActionDraft(reportID: string, reportAction: ReportAction, dra
     Onyx.merge(`${ONYXKEYS.COLLECTION.REPORT_ACTIONS_DRAFTS}${originalReportID}`, {[reportAction.reportActionID]: {message: draftMessage}});
 }
 
+function setReportActionDraftComposerFullSize(reportID: string, reportAction: ReportAction, isEditComposerFullSize: boolean) {
+    const originalReportID = ReportUtils.getOriginalReportID(reportID, reportAction);
+    Onyx.merge(`${ONYXKEYS.COLLECTION.REPORT_ACTIONS_DRAFTS}${originalReportID}`, {[reportAction.reportActionID]: {isEditComposerFullSize}});
+}
+
 function updateNotificationPreference(
     reportID: string,
     previousValue: NotificationPreference | undefined,
@@ -4111,6 +4116,7 @@ export {
     handleUserDeletedLinksInHtml,
     deleteReportActionDraft,
     saveReportActionDraft,
+    setReportActionDraftComposerFullSize,
     deleteReportComment,
     navigateToConciergeChat,
     addPolicyReport,

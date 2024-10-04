@@ -171,7 +171,10 @@ function ReportActionsList({
     const isFocused = useIsFocused();
 
     const [reportNameValuePairs] = useOnyx(`${ONYXKEYS.COLLECTION.REPORT_NAME_VALUE_PAIRS}${report?.reportID ?? -1}`);
-
+    const [isEditComposerFullSize] = useOnyx(`${ONYXKEYS.COLLECTION.REPORT_ACTIONS_DRAFTS}${report.reportID}`, {
+        selector: (draftMessagesForReport) => Object.values(draftMessagesForReport ?? {}).some((draftMessage) => draftMessage?.isEditComposerFullSize),
+        initialValue: false,
+    });
     useEffect(() => {
         const unsubscriber = Visibility.onVisibilityChange(() => {
             setIsVisible(Visibility.isVisible());
@@ -548,8 +551,12 @@ function ReportActionsList({
     const canShowHeader = isOffline || hasHeaderRendered.current;
 
     const contentContainerStyle: StyleProp<ViewStyle> = useMemo(
-        () => [styles.chatContentScrollView, isLoadingNewerReportActions && canShowHeader ? styles.chatContentScrollViewWithHeaderLoader : {}],
-        [isLoadingNewerReportActions, styles.chatContentScrollView, styles.chatContentScrollViewWithHeaderLoader, canShowHeader],
+        () => [
+            isEditComposerFullSize && [styles.overflowHidden, styles.h100],
+            styles.chatContentScrollView,
+            isLoadingNewerReportActions && canShowHeader ? styles.chatContentScrollViewWithHeaderLoader : {},
+        ],
+        [isLoadingNewerReportActions, styles.chatContentScrollView, styles.chatContentScrollViewWithHeaderLoader, canShowHeader, isEditComposerFullSize],
     );
 
     const lastReportAction: OnyxTypes.ReportAction | undefined = useMemo(() => sortedReportActions.at(-1) ?? undefined, [sortedReportActions]);
@@ -636,7 +643,7 @@ function ReportActionsList({
                     accessibilityLabel={translate('sidebarScreen.listOfChatMessages')}
                     ref={reportScrollManager.ref}
                     testID="report-actions-list"
-                    style={styles.overscrollBehaviorContain}
+                    style={[styles.overscrollBehaviorContain, styles.pRelative]}
                     data={sortedVisibleReportActions}
                     renderItem={renderItem}
                     contentContainerStyle={contentContainerStyle}
@@ -655,7 +662,9 @@ function ReportActionsList({
                     onScrollToIndexFailed={onScrollToIndexFailed}
                     extraData={extraData}
                     key={listID}
+                    reportID={report.reportID ?? '-1'}
                     shouldEnableAutoScrollToTopThreshold={shouldEnableAutoScrollToTopThreshold}
+                    scrollEnabled={isEditComposerFullSize ? true : false}
                 />
             </View>
         </>
