@@ -56,6 +56,22 @@ Onyx.connect({
     callback: (value) => (allPolicies = value),
 });
 
+let allTags: OnyxCollection<PolicyTagLists>;
+
+Onyx.connect({
+    key: ONYXKEYS.COLLECTION.POLICY_TAGS,
+    waitForCollectionCallback: true,
+    callback: (value) => (allTags = value),
+});
+
+let allCategories: OnyxCollection<PolicyCategories>;
+
+Onyx.connect({
+    key: ONYXKEYS.COLLECTION.POLICY_CATEGORIES,
+    waitForCollectionCallback: true,
+    callback: (value) => (allCategories = value),
+});
+
 /**
  * Filter out the active policies, which will exclude policies with pending deletion
  * These are policies that we can use to create reports with in NewDot.
@@ -474,6 +490,34 @@ function getAllTaxRatesNamesAndKeys(): Record<string, string[]> {
         });
     });
     return allTaxRates;
+}
+
+function getAllTags(): Record<string, string> {
+    const tags: Record<string, string> = {};
+    Object.values(allTags ?? {})?.forEach((policy) => {
+        if (!policy?.Tag.tags) {
+            return;
+        }
+        Object.entries(policy?.Tag.tags).forEach(([tagKey, tag]) => {
+            if (!tags[tag.name]) {
+                tags[tag.name] = tagKey;
+                return;
+            }
+        });
+    });
+    return tags;
+}
+
+function getAllCategories() {
+    const uniqueCategoryNames = new Set<string>();
+    const personalPolicyID = getPersonalPolicy()?.id;
+    Object.entries(allCategories ?? {})?.forEach(([policyKey, policyCategories]) => {
+        if (isEmptyObject(policyCategories) || policyKey === `${ONYXKEYS.COLLECTION.POLICY_CATEGORIES}${personalPolicyID}`) {
+            return;
+        }
+        Object.values(policyCategories ?? {}).forEach((category) => uniqueCategoryNames.add(category.name));
+    });
+    return Array.from(uniqueCategoryNames).map((categoryName) => ({name: categoryName, value: categoryName}));
 }
 
 /**
@@ -1153,6 +1197,8 @@ export {
     getSubmitToAccountID,
     getWorkspaceAccountID,
     getAllTaxRatesNamesAndKeys as getAllTaxRates,
+    getAllTags,
+    getAllCategories,
     getTagNamesFromTagsLists,
     getTagApproverRule,
     getDomainNameForPolicy,

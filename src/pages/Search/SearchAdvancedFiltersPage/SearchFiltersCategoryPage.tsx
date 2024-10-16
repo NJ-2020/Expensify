@@ -8,6 +8,7 @@ import useLocalize from '@hooks/useLocalize';
 import useSafePaddingBottomStyle from '@hooks/useSafePaddingBottomStyle';
 import useThemeStyles from '@hooks/useThemeStyles';
 import Navigation from '@libs/Navigation/Navigation';
+import * as PolicyUtils from '@libs/PolicyUtils';
 import * as SearchActions from '@userActions/Search';
 import ONYXKEYS from '@src/ONYXKEYS';
 import ROUTES from '@src/ROUTES';
@@ -19,17 +20,14 @@ function SearchFiltersCategoryPage() {
     const [searchAdvancedFiltersForm] = useOnyx(ONYXKEYS.FORMS.SEARCH_ADVANCED_FILTERS_FORM);
     const selectedCategoriesItems = searchAdvancedFiltersForm?.category?.map((category) => ({name: category, value: category}));
     const policyID = searchAdvancedFiltersForm?.policyID ?? '-1';
-    const [allPolicyIDCategories] = useOnyx(ONYXKEYS.COLLECTION.POLICY_CATEGORIES);
-    const singlePolicyCategories = allPolicyIDCategories?.[`${ONYXKEYS.COLLECTION.POLICY_CATEGORIES}${policyID}`];
+    const [singlePolicyCategories] = useOnyx(`${ONYXKEYS.COLLECTION.POLICY_CATEGORIES}${policyID}`);
 
     const categoryItems = useMemo(() => {
         if (!singlePolicyCategories) {
-            const uniqueCategoryNames = new Set<string>();
-            Object.values(allPolicyIDCategories ?? {}).map((policyCategories) => Object.values(policyCategories ?? {}).forEach((category) => uniqueCategoryNames.add(category.name)));
-            return Array.from(uniqueCategoryNames).map((categoryName) => ({name: categoryName, value: categoryName}));
+            return PolicyUtils.getAllCategories();
         }
         return Object.values(singlePolicyCategories ?? {}).map((category) => ({name: category.name, value: category.name}));
-    }, [allPolicyIDCategories, singlePolicyCategories]);
+    }, [singlePolicyCategories]);
 
     const onSaveSelection = useCallback((values: string[]) => SearchActions.updateAdvancedFilters({category: values}), []);
     const safePaddingBottomStyle = useSafePaddingBottomStyle();

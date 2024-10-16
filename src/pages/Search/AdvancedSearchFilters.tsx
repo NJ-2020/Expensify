@@ -18,7 +18,7 @@ import {convertToDisplayStringWithoutCurrency} from '@libs/CurrencyUtils';
 import localeCompare from '@libs/LocaleCompare';
 import Navigation from '@libs/Navigation/Navigation';
 import * as PersonalDetailsUtils from '@libs/PersonalDetailsUtils';
-import {getAllTaxRates} from '@libs/PolicyUtils';
+import {getAllCategories, getAllTags, getAllTaxRates} from '@libs/PolicyUtils';
 import * as ReportUtils from '@libs/ReportUtils';
 import * as SearchUtils from '@libs/SearchUtils';
 import * as SearchActions from '@userActions/Search';
@@ -236,6 +236,8 @@ function AdvancedSearchFilters() {
     const [searchAdvancedFilters = {} as SearchAdvancedFiltersForm] = useOnyx(ONYXKEYS.FORMS.SEARCH_ADVANCED_FILTERS_FORM);
     const [cardList = {}] = useOnyx(ONYXKEYS.CARD_LIST);
     const taxRates = getAllTaxRates();
+    const tags = getAllTags();
+    const categories = getAllCategories();
     const personalDetails = usePersonalDetails();
     let currentType = searchAdvancedFilters?.type ?? CONST.SEARCH.DATA_TYPES.EXPENSE;
     if (!Object.keys(typeFiltersKeys).includes(currentType)) {
@@ -282,20 +284,31 @@ function AdvancedSearchFilters() {
                 key === CONST.SEARCH.SYNTAX_FILTER_KEYS.DATE ||
                 key === CONST.SEARCH.SYNTAX_FILTER_KEYS.AMOUNT ||
                 key === CONST.SEARCH.SYNTAX_FILTER_KEYS.CURRENCY ||
-                key === CONST.SEARCH.SYNTAX_FILTER_KEYS.CATEGORY ||
                 key === CONST.SEARCH.SYNTAX_FILTER_KEYS.DESCRIPTION ||
                 key === CONST.SEARCH.SYNTAX_FILTER_KEYS.MERCHANT ||
                 key === CONST.SEARCH.SYNTAX_FILTER_KEYS.REPORT_ID ||
-                key === CONST.SEARCH.SYNTAX_FILTER_KEYS.KEYWORD ||
-                key === CONST.SEARCH.SYNTAX_FILTER_KEYS.TAG
+                key === CONST.SEARCH.SYNTAX_FILTER_KEYS.KEYWORD
             ) {
                 filterTitle = baseFilterConfig[key].getTitle(searchAdvancedFilters, key, translate);
+            } else if (key === CONST.SEARCH.SYNTAX_FILTER_KEYS.CATEGORY) {
+                if (isEmptyObject(categories)) {
+                    return undefined;
+                }
+                filterTitle = baseFilterConfig[key].getTitle(searchAdvancedFilters, key, translate);
+            } else if (key === CONST.SEARCH.SYNTAX_FILTER_KEYS.TAG) {
+                if (isEmptyObject(tags)) {
+                    return undefined;
+                }
+                filterTitle = baseFilterConfig[key].getTitle(searchAdvancedFilters, key, translate);
             } else if (key === CONST.SEARCH.SYNTAX_FILTER_KEYS.CARD_ID) {
-                if (Object.keys(cardList).length === 0) {
+                if (isEmptyObject(cardList)) {
                     return undefined;
                 }
                 filterTitle = baseFilterConfig[key].getTitle(searchAdvancedFilters, cardList);
             } else if (key === CONST.SEARCH.SYNTAX_FILTER_KEYS.TAX_RATE) {
+                if (isEmptyObject(taxRates)) {
+                    return undefined;
+                }
                 filterTitle = baseFilterConfig[key].getTitle(searchAdvancedFilters, taxRates);
             } else if (key === CONST.SEARCH.SYNTAX_FILTER_KEYS.EXPENSE_TYPE) {
                 filterTitle = baseFilterConfig[key].getTitle(searchAdvancedFilters, translate);
