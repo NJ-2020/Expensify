@@ -22,8 +22,6 @@ function IOURequestEditReport({route}: IOURequestEditReportProps) {
 
     const {selectedTransactionIDs, clearSelectedTransactions} = useSearchContext();
 
-    const [transactionReport] = useOnyx(`${ONYXKEYS.COLLECTION.REPORT}${reportID}`, {canBeMissing: false});
-
     const selectReport = (item: TransactionGroupListItem) => {
         if (selectedTransactionIDs.length === 0 || item.value === reportID) {
             Navigation.dismissModal();
@@ -38,7 +36,7 @@ function IOURequestEditReport({route}: IOURequestEditReportProps) {
     return (
         <IOURequestEditReportCommon
             backTo={backTo}
-            transactionsReports={transactionReport ? [transactionReport] : []}
+            selectedReportID={reportID}
             selectReport={selectReport}
         />
     );
