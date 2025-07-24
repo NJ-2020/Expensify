@@ -18,7 +18,15 @@ import {getDestinationForDisplay, getSubratesFields, getSubratesForDisplay, getT
 import {canSendInvoice, getPerDiemCustomUnit, hasDependentTags as hasDependentTagsPolicyUtils, isMultiLevelTags as isMultiLevelTagsPolicyUtils, isPaidGroupPolicy} from '@libs/PolicyUtils';
 import type {ThumbnailAndImageURI} from '@libs/ReceiptUtils';
 import {getThumbnailAndImageURIs} from '@libs/ReceiptUtils';
-import {buildOptimisticExpenseReport, canAddTransaction, getDefaultWorkspaceAvatar, getOutstandingReportsForUser, getReportName, populateOptimisticReportFormula} from '@libs/ReportUtils';
+import {
+    buildOptimisticExpenseReport,
+    canAddTransaction,
+    getDefaultWorkspaceAvatar,
+    getOutstandingReportsForUser,
+    getReportName,
+    isMoneyRequestReport,
+    populateOptimisticReportFormula,
+} from '@libs/ReportUtils';
 import {hasEnabledTags} from '@libs/TagsOptionsListUtils';
 import {
     getTagForDisplay,
@@ -299,7 +307,7 @@ function MoneyRequestConfirmationListFooter({
     }
 
     const availableOutstandingReports = getOutstandingReportsForUser(policyID, selectedParticipants?.at(0)?.ownerAccountID, allReports, reportNameValuePairs);
-    const shouldReportBeEditable = availableOutstandingReports.length > 1;
+    const shouldReportBeEditable = availableOutstandingReports.length > 1 && !isMoneyRequestReport(reportID, allReports);
 
     const isTypeSend = iouType === CONST.IOU.TYPE.PAY;
     const taxRates = policy?.taxRates ?? null;
@@ -840,6 +848,9 @@ function MoneyRequestConfirmationListFooter({
         ],
     );
 
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+    const hasReceiptImageOrThumbnail = receiptImage || receiptThumbnail;
+
     return (
         <>
             {isTypeInvoice && (
@@ -912,26 +923,21 @@ function MoneyRequestConfirmationListFooter({
                 </>
             )}
             {!shouldShowMap && (
-                <View style={styles.mv3}>
-                    {
-                        // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-                        receiptImage || receiptThumbnail
-                            ? receiptThumbnailContent
-                            : shouldShowReceiptEmptyState && (
-                                  <ReceiptEmptyState
-                                      onPress={() => {
-                                          if (!transactionID) {
-                                              return;
-                                          }
+                <View style={!hasReceiptImageOrThumbnail && !shouldShowReceiptEmptyState ? undefined : styles.mv3}>
+                    {hasReceiptImageOrThumbnail
+                        ? receiptThumbnailContent
+                        : shouldShowReceiptEmptyState && (
+                              <ReceiptEmptyState
+                                  onPress={() => {
+                                      if (!transactionID) {
+                                          return;
+                                      }
 
-                                          Navigation.navigate(
-                                              ROUTES.MONEY_REQUEST_STEP_SCAN.getRoute(CONST.IOU.ACTION.CREATE, iouType, transactionID, reportID, Navigation.getActiveRoute()),
-                                          );
-                                      }}
-                                      style={styles.expenseViewImageSmall}
-                                  />
-                              )
-                    }
+                                      Navigation.navigate(ROUTES.MONEY_REQUEST_STEP_SCAN.getRoute(CONST.IOU.ACTION.CREATE, iouType, transactionID, reportID, Navigation.getActiveRoute()));
+                                  }}
+                                  style={styles.expenseViewImageSmall}
+                              />
+                          )}
                 </View>
             )}
             <View style={[styles.mb5]}>{fields.filter((field) => field.shouldShow).map((field) => field.item)}</View>

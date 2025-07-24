@@ -9,7 +9,7 @@ import useDebouncedState from '@hooks/useDebouncedState';
 import useLocalize from '@hooks/useLocalize';
 import useOnyx from '@hooks/useOnyx';
 import Navigation from '@libs/Navigation/Navigation';
-import {getOutstandingReportsForUser, getPolicyName, isSelfDM} from '@libs/ReportUtils';
+import {getOutstandingReportsForUser, getPolicyName, isSelfDM, sortOutstandingReportsBySelected} from '@libs/ReportUtils';
 import CONST from '@src/CONST';
 import ONYXKEYS from '@src/ONYXKEYS';
 import type {Route} from '@src/ROUTES';
@@ -62,28 +62,29 @@ function IOURequestEditReportCommon({backTo, selectedReportID, selectedPolicyID,
     }, [allReports, selectedReportID]);
 
     const expenseReports = useMemo(() => {
-        if (!selectedReportID || isSelfDM(selectedReport)) {
-            return selectedPolicyID
-                ? getOutstandingReportsForUser(selectedPolicyID, selectedReport?.ownerAccountID ?? currentUserPersonalDetails.accountID, allReports ?? {}, reportNameValuePairs)
-                : Object.values(allPoliciesID ?? {}).flatMap((policyID) =>
-                      getOutstandingReportsForUser(policyID, selectedReport?.ownerAccountID ?? currentUserPersonalDetails.accountID, allReports ?? {}, reportNameValuePairs),
-                  );
+        if (!selectedPolicyID || isSelfDM(selectedReport)) {
+            return Object.values(allPoliciesID ?? {}).flatMap((policyID) =>
+                getOutstandingReportsForUser(policyID, selectedReport?.ownerAccountID ?? currentUserPersonalDetails.accountID, allReports ?? {}, reportNameValuePairs),
+            );
         }
-        return getOutstandingReportsForUser(selectedReport?.policyID, selectedReport?.ownerAccountID ?? currentUserPersonalDetails.accountID, allReports ?? {}, reportNameValuePairs);
-    }, [allReports, currentUserPersonalDetails.accountID, selectedReport, reportNameValuePairs, allPoliciesID, selectedReportID, selectedPolicyID]);
+        return getOutstandingReportsForUser(selectedPolicyID, selectedReport?.ownerAccountID ?? currentUserPersonalDetails.accountID, allReports ?? {}, reportNameValuePairs);
+    }, [allReports, currentUserPersonalDetails.accountID, selectedReport, reportNameValuePairs, allPoliciesID, selectedPolicyID]);
 
     const reportOptions: TransactionGroupListItem[] = useMemo(() => {
         if (!allReports) {
             return [];
         }
         return expenseReports
-            .sort((a, b) => a?.reportName?.localeCompare(b?.reportName?.toLowerCase() ?? '') ?? 0)
+            .sort((report1, report2) => sortOutstandingReportsBySelected(report1, report2, selectedReportID))
             .filter((report) => !debouncedSearchValue || report?.reportName?.toLowerCase().includes(debouncedSearchValue.toLowerCase()))
             .filter((report): report is NonNullable<typeof report> => report !== undefined)
             .map((report) => {
                 const matchingOption = options.reports.find((option) => option.reportID === report.reportID);
                 return {
                     ...matchingOption,
+                    // We are shallow copying properties from matchingOption, so if it has a brickRoadIndicator, it will display RBR.
+                    // We set it to null here to prevent showing RBR for reports https://github.com/Expensify/App/issues/65960.
+                    brickRoadIndicator: null,
                     alternateText: getPolicyName({report}) ?? matchingOption?.alternateText,
                     value: report.reportID,
                     isSelected: report.reportID === selectedReportID,
