@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useMemo} from 'react';
 import type {ListItem} from '@components/SelectionList/types';
 import useOnyx from '@hooks/useOnyx';
 import {changeTransactionsReport, setTransactionReport} from '@libs/actions/Transaction';
@@ -22,7 +22,7 @@ type TransactionGroupListItem = ListItem & {
 type IOURequestStepReportProps = WithWritableReportOrNotFoundProps<typeof SCREENS.MONEY_REQUEST.STEP_REPORT> & WithFullTransactionOrNotFoundProps<typeof SCREENS.MONEY_REQUEST.STEP_REPORT>;
 
 function IOURequestStepReport({route, transaction}: IOURequestStepReportProps) {
-    const {backTo, action, iouType, transactionID, reportID: reportIDFromRoute} = route.params;
+    const {backTo, action, iouType, transactionID} = route.params;
 
     const [allReports] = useOnyx(`${ONYXKEYS.COLLECTION.REPORT}`, {canBeMissing: false});
     const isTransactionUnreported = transaction?.reportID === CONST.REPORT.UNREPORTED_REPORT_ID;
@@ -32,10 +32,15 @@ function IOURequestStepReport({route, transaction}: IOURequestStepReportProps) {
     const shouldUseTransactionReport = (!!transactionReport && isReportOutstanding(transactionReport, transactionReport?.policyID)) || isTransactionUnreported;
     const outstandingReportID = isPolicyExpenseChat(participantReport) ? participantReport?.iouReportID : participantReportID;
     const selectedReportID = shouldUseTransactionReport ? transactionReport?.reportID : outstandingReportID;
+    const selectedReport = useMemo(() => {
+        if (!selectedReportID) {
+            return undefined;
+        }
+        return allReports?.[`${ONYXKEYS.COLLECTION.REPORT}${selectedReportID}`];
+    }, [allReports, selectedReportID]);
     const isEditing = action === CONST.IOU.ACTION.EDIT;
     const isCreateReport = action === CONST.IOU.ACTION.CREATE;
     const isFromGlobalCreate = !!transaction?.isFromGlobalCreate;
-    const reportOrDraftReport = getReportOrDraftReport(reportIDFromRoute);
 
     const handleGoBackWithReportID = (id: string) => {
         if (isEditing) {
@@ -124,7 +129,7 @@ function IOURequestStepReport({route, transaction}: IOURequestStepReportProps) {
         <IOURequestEditReportCommon
             backTo={backTo}
             selectedReportID={selectedReportID}
-            selectedPolicyID={!isEditing && !isFromGlobalCreate ? reportOrDraftReport?.policyID : undefined}
+            selectedPolicyID={!isEditing && !isFromGlobalCreate ? selectedReport?.policyID : undefined}
             selectReport={selectReport}
         />
     );
