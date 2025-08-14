@@ -8618,15 +8618,23 @@ function getRouteFromLink(url: string | null): string {
     // Get the reportID from URL
     let route = url;
     const localWebAndroidRegEx = /^(https:\/\/([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3}))/;
-    linkingConfig.prefixes.forEach((prefix) => {
+    
+    // Find the matching prefix and process the URL only once
+    let processed = false;
+    for (const prefix of linkingConfig.prefixes) {
         if (route.startsWith(prefix)) {
             route = route.replace(prefix, '');
+            processed = true;
+            break;
         } else if (localWebAndroidRegEx.test(route)) {
             route = route.replace(localWebAndroidRegEx, '');
-        } else {
-            return;
+            processed = true;
+            break;
         }
+    }
 
+    // Only process the URL if we found a matching prefix
+    if (processed) {
         // Remove the port if it's a localhost URL
         if (/^:\d+/.test(route)) {
             route = route.replace(/:\d+/, '');
@@ -8636,7 +8644,13 @@ function getRouteFromLink(url: string | null): string {
         if (route.startsWith('/')) {
             route = route.replace('/', '');
         }
-    });
+    }
+    
+    // Log the URL processing for debugging
+    if (url.includes('r/')) {
+        Log.info('[getRouteFromLink] URL processing', {originalUrl: url, processedRoute: route});
+    }
+    
     return route;
 }
 
@@ -8656,6 +8670,11 @@ function parseReportRouteParams(route: string): ReportRouteParams {
 
     const reportID = focusedRoute?.params && 'reportID' in focusedRoute.params ? (focusedRoute?.params?.reportID as string) : '';
 
+    // Log the route parsing for debugging
+    if (parsingRoute.includes('r/')) {
+        Log.info('[parseReportRouteParams] Parsing route', {parsingRoute, focusedRoute: focusedRoute?.name, reportID});
+    }
+
     if (!reportID) {
         return {reportID: '', isSubReportPageRoute: false};
     }
@@ -8670,10 +8689,22 @@ function parseReportRouteParams(route: string): ReportRouteParams {
 function getReportIDFromLink(url: string | null): string {
     const route = getRouteFromLink(url);
     const {reportID, isSubReportPageRoute} = parseReportRouteParams(route);
+    
+    // Log the URL processing for debugging
+    if (url && url.includes('r/')) {
+        Log.info('[getReportIDFromLink] Processing URL', {url, route, reportID, isSubReportPageRoute});
+    }
+    
     if (isSubReportPageRoute) {
         // We allow the Sub-Report deep link routes (settings, details, etc.) to be handled by their respective component pages
         return '';
     }
+    
+    // Ensure the reportID is valid and not empty
+    if (!reportID || reportID.trim() === '') {
+        return '';
+    }
+    
     return reportID;
 }
 

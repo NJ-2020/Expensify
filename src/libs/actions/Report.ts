@@ -1034,6 +1034,19 @@ function openReport(
         },
     ];
 
+    // For deeplink requests from anonymous users, add additional error handling
+    if (isFromDeepLink && !isAuthenticated) {
+        failureData.push({
+            onyxMethod: Onyx.METHOD.MERGE,
+            key: `${ONYXKEYS.COLLECTION.REPORT}${reportID}`,
+            value: {
+                errorFields: {
+                    notFound: 'Public room access failed. Please try again or sign in.',
+                },
+            },
+        });
+    }
+
     const finallyData: OnyxUpdate[] = [];
 
     const parameters: OpenReportParams = {
@@ -1149,6 +1162,13 @@ function openReport(
 
     if (isFromDeepLink) {
         parameters.shouldRetry = false;
+        
+        // For deeplink requests, we want to handle errors more gracefully
+        // especially for anonymous users trying to access public rooms
+        if (!isAuthenticated) {
+            // Add a flag to indicate this is a deeplink request for anonymous users
+            parameters.isDeeplinkAnonymousRequest = true;
+        }
     }
 
     // If we are creating a new report, we need to add the optimistic report data and a report action
@@ -3363,7 +3383,17 @@ function openReportFromDeepLink(
 
     if (reportID && !isAuthenticated) {
         // Call the OpenReport command to check in the server if it's a public room. If so, we'll open it as an anonymous user
-        openReport(reportID, '', [], undefined, '0', true);
+        // Ensure the reportID is properly validated before making the API call
+        if (reportID && reportID.trim() !== '') {
+            // Log the attempt to open report for debugging
+            Log.info('[openReportFromDeepLink] Attempting to open public room', {reportID, url});
+            openReport(reportID, '', [], undefined, '0', true);
+        } else {
+            // If reportID is invalid, unblock the UI and show error
+            Log.warn('[openReportFromDeepLink] Invalid reportID', {reportID, url});
+            doneCheckingPublicRoom();
+            return;
+        }
 
         // Show the sign-in page if the app is offline
         if (networkStatus === CONST.NETWORK.NETWORK_STATUS.OFFLINE) {
@@ -3376,7 +3406,7 @@ function openReportFromDeepLink(
 
     let route = getRouteFromLink(url);
 
-    // Bing search results still link to /signin when searching for “Expensify”, but the /signin route no longer exists in our repo, so we redirect it to the home page to avoid showing a Not Found page.
+    // Bing search results still link to /signin when searching for "Expensify", but the /signin route no longer exists in our repo, so we redirect it to the home page to avoid showing a Not Found page.
     if (normalizePath(route) === CONST.SIGNIN_ROUTE) {
         route = '';
     }
