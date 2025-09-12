@@ -10,6 +10,7 @@ import Permissions from '@libs/Permissions';
 import IOURequestEditReportCommon from '@pages/iou/request/step/IOURequestEditReportCommon';
 import CONST from '@src/CONST';
 import ONYXKEYS from '@src/ONYXKEYS';
+import type {Report} from '@src/types/onyx';
 
 type TransactionGroupListItem = ListItem & {
     /** reportID of the report */
@@ -19,19 +20,23 @@ type TransactionGroupListItem = ListItem & {
 function SearchTransactionsChangeReport() {
     const {selectedTransactions, clearSelectedTransactions} = useSearchContext();
     const selectedTransactionsKeys = useMemo(() => Object.keys(selectedTransactions), [selectedTransactions]);
+
+    const [allReports] = useOnyx(ONYXKEYS.COLLECTION.REPORT, {canBeMissing: false});
     const [allReportNextSteps] = useOnyx(ONYXKEYS.COLLECTION.NEXT_STEP, {canBeMissing: true});
     const [allPolicies] = useOnyx(ONYXKEYS.COLLECTION.POLICY, {canBeMissing: true});
+    const transactionsReports = useMemo(() => {
+        const reports = Object.values(selectedTransactions).reduce((acc, transaction) => {
+            const report = allReports?.[`${ONYXKEYS.COLLECTION.REPORT}${transaction.reportID}`];
+            if (report) {
+                acc.add(report);
+            }
+            return acc;
+        }, new Set<Report>());
+        return [...reports];
+    }, [allReports, selectedTransactions]);
     const [allBetas] = useOnyx(ONYXKEYS.BETAS, {canBeMissing: true});
-
     const isASAPSubmitBetaEnabled = Permissions.isBetaEnabled(CONST.BETAS.ASAP_SUBMIT, allBetas);
     const session = useSession();
-
-    const firstTransactionKey = selectedTransactionsKeys.at(0);
-    const firstTransactionReportID = firstTransactionKey ? selectedTransactions[firstTransactionKey]?.reportID : undefined;
-    const selectedReportID =
-        Object.values(selectedTransactions).every((transaction) => transaction.reportID === firstTransactionReportID) && firstTransactionReportID !== CONST.REPORT.UNREPORTED_REPORT_ID
-            ? firstTransactionReportID
-            : undefined;
 
     const selectReport = (item: TransactionGroupListItem) => {
         if (selectedTransactionsKeys.length === 0) {
@@ -56,7 +61,7 @@ function SearchTransactionsChangeReport() {
     };
 
     const removeFromReport = () => {
-        if (selectedTransactionsKeys.length === 0) {
+        if (!transactionsReports || selectedTransactionsKeys.length === 0) {
             return;
         }
         changeTransactionsReport(selectedTransactionsKeys, CONST.REPORT.UNREPORTED_REPORT_ID, isASAPSubmitBetaEnabled, session?.accountID ?? CONST.DEFAULT_NUMBER_ID, session?.email ?? '');
@@ -67,8 +72,8 @@ function SearchTransactionsChangeReport() {
     return (
         <IOURequestEditReportCommon
             backTo={undefined}
-            transactionIDs={selectedTransactionsKeys}
-            selectedReportID={selectedReportID}
+            transactionsReports={transactionsReports}
+            transactionIds={selectedTransactionsKeys}
             selectReport={selectReport}
             removeFromReport={removeFromReport}
             isEditing

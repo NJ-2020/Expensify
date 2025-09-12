@@ -22,8 +22,6 @@ import {
     buildOptimisticExpenseReport,
     getDefaultWorkspaceAvatar,
     getOutstandingReportsForUser,
-    getReportName,
-    isArchivedReport,
     isMoneyRequestReport,
     isReportOutstanding,
     populateOptimisticReportFormula,
@@ -270,21 +268,8 @@ function MoneyRequestConfirmationListFooter({
     const {isOffline} = useNetwork();
     const [allPolicies] = useOnyx(ONYXKEYS.COLLECTION.POLICY, {canBeMissing: true});
     const [allReports] = useOnyx(ONYXKEYS.COLLECTION.REPORT, {canBeMissing: true});
-    const [reportNameValuePairs] = useOnyx(ONYXKEYS.COLLECTION.REPORT_NAME_VALUE_PAIRS, {canBeMissing: true});
-    const [outstandingReportsByPolicyID] = useOnyx(ONYXKEYS.DERIVED.OUTSTANDING_REPORTS_BY_POLICY_ID, {
-        canBeMissing: true,
-    });
 
     const [currentUserLogin] = useOnyx(ONYXKEYS.SESSION, {selector: (session) => session?.email, canBeMissing: true});
-
-    const allOutstandingReports = useMemo(() => {
-        const outstandingReports = Object.values(outstandingReportsByPolicyID ?? {}).flatMap((outstandingReportsPolicy) => Object.values(outstandingReportsPolicy ?? {}));
-
-        return outstandingReports.filter((report) => {
-            const reportNameValuePair = reportNameValuePairs?.[`${ONYXKEYS.COLLECTION.REPORT_NAME_VALUE_PAIRS}${report?.reportID}`];
-            return !isArchivedReport(reportNameValuePair);
-        });
-    }, [outstandingReportsByPolicyID, reportNameValuePairs]);
 
     const shouldShowTags = useMemo(() => isPolicyExpenseChat && hasEnabledTags(policyTagLists), [isPolicyExpenseChat, policyTagLists]);
     const shouldShowAttendees = useMemo(() => shouldShowAttendeesTransactionUtils(iouType, policy), [iouType, policy]);
@@ -294,8 +279,6 @@ function MoneyRequestConfirmationListFooter({
     // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     const shouldShowMap = isDistanceRequest && !isManualDistanceRequest && !!(hasErrors || hasPendingWaypoints || iouType !== CONST.IOU.TYPE.SPLIT || !isReadOnly);
 
-    const isFromGlobalCreate = !!transaction?.isFromGlobalCreate;
-
     const senderWorkspace = useMemo(() => {
         const senderWorkspaceParticipant = selectedParticipants.find((participant) => participant.isSender);
         return allPolicies?.[`${ONYXKEYS.COLLECTION.POLICY}${senderWorkspaceParticipant?.policyID}`];
@@ -304,39 +287,35 @@ function MoneyRequestConfirmationListFooter({
     const canUpdateSenderWorkspace = useMemo(() => {
         const isInvoiceRoomParticipant = selectedParticipants.some((participant) => participant.isInvoiceRoom);
 
-        return canSendInvoice(allPolicies, currentUserLogin) && isFromGlobalCreate && !isInvoiceRoomParticipant;
-    }, [allPolicies, currentUserLogin, selectedParticipants, isFromGlobalCreate]);
+        return canSendInvoice(allPolicies, currentUserLogin) && !!transaction?.isFromGlobalCreate && !isInvoiceRoomParticipant;
+    }, [allPolicies, currentUserLogin, selectedParticipants, transaction?.isFromGlobalCreate]);
 
     /**
      * We need to check if the transaction report exists first in order to prevent the outstanding reports from being used.
      * Also we need to check if transaction report exists in outstanding reports in order to show a correct report name.
      */
-    const transactionReport = transaction?.reportID ? Object.values(allReports ?? {}).find((report) => report?.reportID === transaction.reportID) : undefined;
+    const transactionReport = !!transaction?.reportID && Object.values(allReports ?? {}).find((report) => report?.reportID === transaction.reportID);
     const policyID = selectedParticipants?.at(0)?.policyID;
-    const selectedPolicy = allPolicies?.[`${ONYXKEYS.COLLECTION.POLICY}${policyID}`];
+    const reportOwnerAccountID = selectedParticipants?.at(0)?.ownerAccountID;
     const shouldUseTransactionReport = !!transactionReport && isReportOutstanding(transactionReport, policyID, undefined, false);
-    const availableOutstandingReports = getOutstandingReportsForUser(policyID, selectedParticipants?.at(0)?.ownerAccountID, allReports, reportNameValuePairs, false).sort((a, b) =>
-        localeCompare(a?.reportName?.toLowerCase() ?? '', b?.reportName?.toLowerCase() ?? ''),
-    );
-    const iouReportID = allReports?.[`${ONYXKEYS.COLLECTION.REPORT}${reportID}`]?.iouReportID;
-    const outstandingReportID = isPolicyExpenseChat ? (iouReportID ?? availableOutstandingReports.at(0)?.reportID) : reportID;
-    const selectedReportID = shouldUseTransactionReport ? transactionReport.reportID : outstandingReportID;
-    const selectedReport = useMemo(() => {
-        if (!selectedReportID) {
-            return;
-        }
-        return allReports?.[`${ONYXKEYS.COLLECTION.REPORT}${selectedReportID}`];
-    }, [allReports, selectedReportID]);
-    let reportName = getReportName(selectedReport, selectedPolicy);
+    const firstOutstandingReport = getOutstandingReportsForUser(policyID, reportOwnerAccountID, allReports ?? {}, undefined, false)
+        .sort((a, b) => localeCompare(a?.reportName?.toLowerCase() ?? '', b?.reportName?.toLowerCase() ?? ''))
+        .at(0);
+    let reportName: string | undefined;
+    if (shouldUseTransactionReport) {
+        reportName = transactionReport.reportName;
+    } else {
+        reportName = firstOutstandingReport?.reportName;
+    }
 
     if (!reportName) {
-        const optimisticReport = buildOptimisticExpenseReport(reportID, selectedPolicy?.id, selectedPolicy?.ownerAccountID ?? CONST.DEFAULT_NUMBER_ID, Number(formattedAmount), currency);
-        reportName = populateOptimisticReportFormula(selectedPolicy?.fieldList?.text_title?.defaultValue ?? '', optimisticReport, selectedPolicy);
+        const optimisticReport = buildOptimisticExpenseReport(reportID, policy?.id, policy?.ownerAccountID ?? CONST.DEFAULT_NUMBER_ID, Number(formattedAmount), currency);
+        reportName = populateOptimisticReportFormula(policy?.fieldList?.text_title?.defaultValue ?? '', optimisticReport, policy);
     }
 
     // When creating an expense in an individual report, the report field becomes read-only
     // since the destination is already determined and there's no need to show a selectable list.
-    const shouldReportBeEditable = (isFromGlobalCreate ? allOutstandingReports.length > 1 : availableOutstandingReports.length > 1) && !isMoneyRequestReport(reportID, allReports);
+    const shouldReportBeEditable = !!firstOutstandingReport && !isMoneyRequestReport(reportID, allReports);
 
     const isTypeSend = iouType === CONST.IOU.TYPE.PAY;
     const taxRates = policy?.taxRates ?? null;
@@ -725,10 +704,10 @@ function MoneyRequestConfirmationListFooter({
                     style={[styles.moneyRequestMenuItem]}
                     titleStyle={styles.flex1}
                     onPress={() => {
-                        if (!transactionID || !selectedReportID) {
+                        if (!transactionID) {
                             return;
                         }
-                        Navigation.navigate(ROUTES.MONEY_REQUEST_STEP_REPORT.getRoute(action, iouType, transactionID, selectedReportID, Navigation.getActiveRoute(), reportActionID));
+                        Navigation.navigate(ROUTES.MONEY_REQUEST_STEP_REPORT.getRoute(action, iouType, transactionID, reportID, Navigation.getActiveRoute(), reportActionID));
                     }}
                     interactive={shouldReportBeEditable}
                     shouldRenderAsHTML
