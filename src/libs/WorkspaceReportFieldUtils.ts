@@ -99,7 +99,7 @@ function containsFormulaPattern(initialValue: string): boolean {
 }
 
 /**
- * Determines the optimal field type based on the initial value.
+ * Determines the field type based on the provided initial value.
  * This mimics the backend logic that converts field types based on initial value patterns.
  * Only converts between TEXT and FORMULA types - other types (DATE, LIST) are preserved.
  */
