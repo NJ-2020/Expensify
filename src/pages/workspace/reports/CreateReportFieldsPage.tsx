@@ -183,6 +183,20 @@ function WorkspaceCreateReportFieldsPage({
                                 />
                             )}
 
+                            {inputValues[INPUT_IDS.TYPE] === CONST.REPORT_FIELD_TYPES.FORMULA && (
+                                <InputWrapper
+                                    InputComponent={TextPicker}
+                                    inputID={INPUT_IDS.INITIAL_VALUE}
+                                    label={translate('common.initialValue')}
+                                    subtitle={translate('workspace.reportFields.initialValueInputSubtitle')}
+                                    description={translate('common.initialValue')}
+                                    accessibilityLabel={translate('workspace.editor.initialValueInputLabel')}
+                                    maxLength={CONST.WORKSPACE_REPORT_FIELD_POLICY_MAX_LENGTH}
+                                    multiline={false}
+                                    role={CONST.ROLE.PRESENTATION}
+                                />
+                            )}
+
                             {inputValues[INPUT_IDS.TYPE] === CONST.REPORT_FIELD_TYPES.DATE && (
                                 <MenuItemWithTopDescription
                                     title={translate('common.currentDate')}

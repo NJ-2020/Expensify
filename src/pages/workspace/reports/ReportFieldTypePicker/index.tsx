@@ -32,13 +32,15 @@ function ReportFieldTypePicker({defaultValue, onOptionSelected}: ReportFieldType
     const {translate} = useLocalize();
 
     const typeSections = useMemo(() => {
-        const data = Object.values(CONST.REPORT_FIELD_TYPES).map((reportFieldType) => ({
-            keyForList: reportFieldType,
-            value: reportFieldType,
-            isSelected: defaultValue === reportFieldType,
-            text: translate(getReportFieldTypeTranslationKey(reportFieldType)),
-            alternateText: translate(getReportFieldAlternativeTextTranslationKey(reportFieldType)),
-        }));
+        const data = Object.values(CONST.REPORT_FIELD_TYPES).map((reportFieldType) => {
+            return {
+                keyForList: reportFieldType,
+                value: reportFieldType,
+                isSelected: defaultValue === reportFieldType,
+                text: translate(getReportFieldTypeTranslationKey(reportFieldType)),
+                alternateText: translate(getReportFieldAlternativeTextTranslationKey(reportFieldType)),
+            };
+        });
 
         return [{data}];
     }, [defaultValue, translate]);

@@ -338,9 +338,15 @@ function deleteReportFields(policyID: string, reportFieldsToUpdate: string[]) {
 function updateReportFieldInitialValue(policyID: string, reportFieldID: string, newInitialValue: string) {
     const previousFieldList = allPolicies?.[`${ONYXKEYS.COLLECTION.POLICY}${policyID}`]?.fieldList ?? {};
     const fieldKey = ReportUtils.getReportFieldKey(reportFieldID);
+    const currentField = previousFieldList[fieldKey];
+
+    // Determine the field type based on the initial value
+    const fieldType = WorkspaceReportFieldUtils.determineFieldTypeFromInitialValue(currentField?.type ?? CONST.REPORT_FIELD_TYPES.TEXT, newInitialValue);
+
     const updatedReportField: PolicyReportField = {
-        ...previousFieldList[fieldKey],
+        ...currentField,
         defaultValue: newInitialValue,
+        type: fieldType,
     };
     const onyxData: OnyxData = {
         optimisticData: [
@@ -373,7 +379,7 @@ function updateReportFieldInitialValue(policyID: string, reportFieldID: string, 
                 onyxMethod: Onyx.METHOD.MERGE,
                 value: {
                     fieldList: {
-                        [fieldKey]: {...previousFieldList[fieldKey], pendingAction: null},
+                        [fieldKey]: {...currentField, pendingAction: null},
                     },
                     errorFields: {
                         [fieldKey]: ErrorUtils.getMicroSecondOnyxErrorWithTranslationKey('workspace.reportFields.genericFailureMessage'),

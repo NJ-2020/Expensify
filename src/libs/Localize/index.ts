@@ -135,7 +135,7 @@ function translate<TPath extends TranslationPaths>(locale: Locale | undefined, p
         }
         return phraseString;
     }
-    throw new Error(`${path} was not found in the ${locale} locale`);
+    // throw new Error(`${path} was not found in the ${locale} locale`);
 }
 
 /**

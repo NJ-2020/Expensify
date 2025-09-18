@@ -5,6 +5,7 @@ import type ONYXKEYS from '@src/ONYXKEYS';
 import type {InputID} from '@src/types/form/WorkspaceReportFieldForm';
 import type {PolicyReportField, PolicyReportFieldType} from '@src/types/onyx/Policy';
 import {addErrorMessage} from './ErrorUtils';
+import {extract} from './Formula';
 import {translateLocal} from './Localize';
 import {isRequiredFulfilled} from './ValidationUtils';
 
@@ -16,6 +17,7 @@ function getReportFieldTypeTranslationKey(reportFieldType: PolicyReportFieldType
         [CONST.REPORT_FIELD_TYPES.TEXT]: 'workspace.reportFields.textType',
         [CONST.REPORT_FIELD_TYPES.DATE]: 'workspace.reportFields.dateType',
         [CONST.REPORT_FIELD_TYPES.LIST]: 'workspace.reportFields.dropdownType',
+        [CONST.REPORT_FIELD_TYPES.FORMULA]: 'workspace.reportFields.formulaType',
     };
 
     return typeTranslationKeysStrategy[reportFieldType];
@@ -29,6 +31,7 @@ function getReportFieldAlternativeTextTranslationKey(reportFieldType: PolicyRepo
         [CONST.REPORT_FIELD_TYPES.TEXT]: 'workspace.reportFields.textAlternateText',
         [CONST.REPORT_FIELD_TYPES.DATE]: 'workspace.reportFields.dateAlternateText',
         [CONST.REPORT_FIELD_TYPES.LIST]: 'workspace.reportFields.dropdownAlternateText',
+        [CONST.REPORT_FIELD_TYPES.FORMULA]: 'workspace.reportFields.formulaAlternateText',
     };
 
     return typeTranslationKeysStrategy[reportFieldType];
@@ -82,4 +85,52 @@ function getReportFieldInitialValue(reportField: PolicyReportField | null): stri
     return reportField.value ?? reportField.defaultValue;
 }
 
-export {getReportFieldTypeTranslationKey, getReportFieldAlternativeTextTranslationKey, validateReportFieldListValueName, generateFieldID, getReportFieldInitialValue};
+/**
+ * Determines if an initial value contains formula patterns (e.g., {field:test}, {report:type}).
+ */
+function containsFormulaPattern(initialValue: string): boolean {
+    if (!initialValue || typeof initialValue !== 'string') {
+        return false;
+    }
+
+    // Use the formula extract function to check for formula patterns
+    const formulaParts = extract(initialValue);
+    return formulaParts.length > 0;
+}
+
+/**
+ * Determines the optimal field type based on the initial value.
+ * This mimics the backend logic that converts field types based on initial value patterns.
+ * Only converts between TEXT and FORMULA types - other types (DATE, LIST) are preserved.
+ */
+function determineFieldTypeFromInitialValue(currentType: PolicyReportFieldType, initialValue: string): PolicyReportFieldType {
+    // Only apply type conversion logic for TEXT and FORMULA fields
+    // Other field types (DATE, LIST) should not be affected by formula patterns
+    if (currentType !== CONST.REPORT_FIELD_TYPES.TEXT && currentType !== CONST.REPORT_FIELD_TYPES.FORMULA) {
+        return currentType;
+    }
+
+    // If the initial value contains formula patterns, it should be a formula field
+    if (containsFormulaPattern(initialValue)) {
+        return CONST.REPORT_FIELD_TYPES.FORMULA;
+    }
+
+    // If it doesn't contain formula patterns and the current type is formula,
+    // convert it back to text (mimicking backend behavior)
+    if (currentType === CONST.REPORT_FIELD_TYPES.FORMULA && !containsFormulaPattern(initialValue)) {
+        return CONST.REPORT_FIELD_TYPES.TEXT;
+    }
+
+    // Otherwise, keep the current type
+    return currentType;
+}
+
+export {
+    getReportFieldTypeTranslationKey,
+    getReportFieldAlternativeTextTranslationKey,
+    validateReportFieldListValueName,
+    generateFieldID,
+    getReportFieldInitialValue,
+    containsFormulaPattern,
+    determineFieldTypeFromInitialValue,
+};

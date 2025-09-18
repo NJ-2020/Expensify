@@ -87,6 +87,7 @@ function ReportFieldsInitialValuePage({
     }
 
     const isTextFieldType = reportField.type === CONST.REPORT_FIELD_TYPES.TEXT;
+    const isFormulaFieldType = reportField.type === CONST.REPORT_FIELD_TYPES.FORMULA;
     const isListFieldType = reportField.type === CONST.REPORT_FIELD_TYPES.LIST;
 
     return (
@@ -121,6 +122,33 @@ function ReportFieldsInitialValuePage({
                         style={styles.flex1}
                         enabledWhenOffline
                         isSubmitButtonVisible={isTextFieldType}
+                        submitButtonStyles={styles.mh5}
+                        shouldHideFixErrorsAlert
+                    >
+                        <InputWrapper
+                            containerStyles={styles.mh5}
+                            InputComponent={TextInput}
+                            inputID={INPUT_IDS.INITIAL_VALUE}
+                            label={translate('common.initialValue')}
+                            accessibilityLabel={translate('workspace.editor.initialValueInputLabel')}
+                            multiline={false}
+                            value={initialValue}
+                            role={CONST.ROLE.PRESENTATION}
+                            ref={inputCallbackRef}
+                            onChangeText={setInitialValue}
+                        />
+                    </FormProvider>
+                )}
+                {isFormulaFieldType && (
+                    <FormProvider
+                        addBottomSafeAreaPadding
+                        formID={ONYXKEYS.FORMS.WORKSPACE_REPORT_FIELDS_FORM}
+                        onSubmit={submitForm}
+                        submitButtonText={translate('common.save')}
+                        validate={validateForm}
+                        style={styles.flex1}
+                        enabledWhenOffline
+                        isSubmitButtonVisible={isFormulaFieldType}
                         submitButtonStyles={styles.mh5}
                         shouldHideFixErrorsAlert
                     >
