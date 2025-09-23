@@ -4794,6 +4794,7 @@ const translations = {
             reportFieldTypeRequiredError: 'Please choose a report field type',
             reportFieldInitialValueRequiredError: 'Please choose a report field initial value',
             genericFailureMessage: 'An error occurred while updating the report field. Please try again.',
+            formulaError: 'Formula value is not allowed.',
         },
         tags: {
             tagName: 'Tag name',
