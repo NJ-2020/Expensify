@@ -42,7 +42,7 @@ function EditReportFieldTextPage({fieldName, onSubmit, fieldValue, isRequired, f
             }
 
             if (containsFormulaPattern(inputValue)) {
-                errors[fieldKey] = translate('common.error.formulaError');
+                errors[fieldKey] = translate('workspace.reportFields.formulaError');
             }
 
             return errors;

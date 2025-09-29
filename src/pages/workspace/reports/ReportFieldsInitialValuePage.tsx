@@ -16,7 +16,7 @@ import type {SettingsNavigatorParamList} from '@libs/Navigation/types';
 import {hasAccountingConnections as hasAccountingConnectionsPolicyUtils} from '@libs/PolicyUtils';
 import {getReportFieldKey} from '@libs/ReportUtils';
 import {isRequiredFulfilled} from '@libs/ValidationUtils';
-import {getReportFieldInitialValue} from '@libs/WorkspaceReportFieldUtils';
+import {containsFormulaPattern, getReportFieldInitialValue} from '@libs/WorkspaceReportFieldUtils';
 import NotFoundPage from '@pages/ErrorPage/NotFoundPage';
 import AccessOrNotFoundWrapper from '@pages/workspace/AccessOrNotFoundWrapper';
 import type {WithPolicyAndFullscreenLoadingProps} from '@pages/workspace/withPolicyAndFullscreenLoading';
@@ -65,6 +65,10 @@ function ReportFieldsInitialValuePage({
         (values: FormOnyxValues<typeof ONYXKEYS.FORMS.WORKSPACE_REPORT_FIELDS_FORM>): FormInputErrors<typeof ONYXKEYS.FORMS.WORKSPACE_REPORT_FIELDS_FORM> => {
             const {initialValue: formInitialValue} = values;
             const errors: FormInputErrors<typeof ONYXKEYS.FORMS.WORKSPACE_REPORT_FIELDS_FORM> = {};
+
+            if (reportField?.type === CONST.REPORT_FIELD_TYPES.TEXT && containsFormulaPattern(formInitialValue)) {
+                errors[INPUT_IDS.INITIAL_VALUE] = translate('workspace.reportFields.formulaError');
+            }
 
             if (reportField?.type === CONST.REPORT_FIELD_TYPES.TEXT && formInitialValue.length > CONST.WORKSPACE_REPORT_FIELD_POLICY_MAX_LENGTH) {
                 errors[INPUT_IDS.INITIAL_VALUE] = translate('common.error.characterLimitExceedCounter', {
