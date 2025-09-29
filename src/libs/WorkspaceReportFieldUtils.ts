@@ -5,6 +5,7 @@ import type ONYXKEYS from '@src/ONYXKEYS';
 import type {InputID} from '@src/types/form/WorkspaceReportFieldForm';
 import type {PolicyReportField, PolicyReportFieldType} from '@src/types/onyx/Policy';
 import {addErrorMessage} from './ErrorUtils';
+import {extract} from './Formula';
 import {translateLocal} from './Localize';
 import {isRequiredFulfilled} from './ValidationUtils';
 
@@ -82,4 +83,14 @@ function getReportFieldInitialValue(reportField: PolicyReportField | null): stri
     return reportField.value ?? reportField.defaultValue;
 }
 
-export {getReportFieldTypeTranslationKey, getReportFieldAlternativeTextTranslationKey, validateReportFieldListValueName, generateFieldID, getReportFieldInitialValue};
+function containsFormulaPattern(value: string): boolean {
+    if (!value) {
+        return false;
+    }
+
+    // Use the formula extract function to check for formula patterns
+    const formulaParts = extract(value);
+    return formulaParts.length > 0;
+}
+
+export {getReportFieldTypeTranslationKey, getReportFieldAlternativeTextTranslationKey, validateReportFieldListValueName, generateFieldID, getReportFieldInitialValue, containsFormulaPattern};

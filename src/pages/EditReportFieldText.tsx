@@ -7,6 +7,7 @@ import TextInput from '@components/TextInput';
 import useAutoFocusInput from '@hooks/useAutoFocusInput';
 import useLocalize from '@hooks/useLocalize';
 import useThemeStyles from '@hooks/useThemeStyles';
+import {containsFormulaPattern} from '@libs/WorkspaceReportFieldUtils';
 import CONST from '@src/CONST';
 import ONYXKEYS from '@src/ONYXKEYS';
 
@@ -35,9 +36,15 @@ function EditReportFieldTextPage({fieldName, onSubmit, fieldValue, isRequired, f
     const validate = useCallback(
         (values: FormOnyxValues<typeof ONYXKEYS.FORMS.REPORT_FIELDS_EDIT_FORM>) => {
             const errors: FormInputErrors<typeof ONYXKEYS.FORMS.REPORT_FIELDS_EDIT_FORM> = {};
-            if (isRequired && values[fieldKey].trim() === '') {
+            const inputValue = values[fieldKey].trim();
+            if (isRequired && inputValue === '') {
                 errors[fieldKey] = translate('common.error.fieldRequired');
             }
+
+            if (containsFormulaPattern(inputValue)) {
+                errors[fieldKey] = translate('common.error.formulaError');
+            }
+
             return errors;
         },
         [fieldKey, isRequired, translate],

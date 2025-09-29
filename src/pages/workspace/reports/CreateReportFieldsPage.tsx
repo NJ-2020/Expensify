@@ -16,6 +16,7 @@ import Navigation from '@libs/Navigation/Navigation';
 import type {PlatformStackScreenProps} from '@libs/Navigation/PlatformStackNavigation/types';
 import {hasAccountingConnections} from '@libs/PolicyUtils';
 import {isRequiredFulfilled} from '@libs/ValidationUtils';
+import {containsFormulaPattern} from '@libs/WorkspaceReportFieldUtils';
 import type {SettingsNavigatorParamList} from '@navigation/types';
 import AccessOrNotFoundWrapper from '@pages/workspace/AccessOrNotFoundWrapper';
 import type {WithPolicyAndFullscreenLoadingProps} from '@pages/workspace/withPolicyAndFullscreenLoading';
@@ -94,6 +95,10 @@ function WorkspaceCreateReportFieldsPage({
 
             if (type === CONST.REPORT_FIELD_TYPES.LIST && availableListValuesLength > 0 && !isRequiredFulfilled(formInitialValue)) {
                 errors[INPUT_IDS.INITIAL_VALUE] = translate('workspace.reportFields.reportFieldInitialValueRequiredError');
+            }
+
+            if (type === CONST.REPORT_FIELD_TYPES.TEXT && containsFormulaPattern(formInitialValue)) {
+                errors[INPUT_IDS.INITIAL_VALUE] = translate('workspace.reportFields.formulaError');
             }
 
             return errors;
