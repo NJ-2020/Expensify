@@ -1076,8 +1076,6 @@ const READ_COMMANDS = {
     EXPAND_URL_PREVIEW: 'ExpandURLPreview',
     GET_REPORT_PRIVATE_NOTE: 'GetReportPrivateNote',
     OPEN_ROOM_MEMBERS_PAGE: 'OpenRoomMembersPage',
-    SEARCH_FOR_REPORTS: 'SearchForReports',
-    SEARCH_FOR_ROOMS_TO_MENTION: 'SearchForRoomsToMention',
     SEND_PERFORMANCE_TIMING: 'SendPerformanceTiming',
     GRAPHITE: 'Graphite',
     GET_ROUTE: 'GetRoute',
@@ -1152,8 +1150,6 @@ type ReadCommandParameters = {
     [READ_COMMANDS.EXPAND_URL_PREVIEW]: Parameters.ExpandURLPreviewParams;
     [READ_COMMANDS.GET_REPORT_PRIVATE_NOTE]: Parameters.GetReportPrivateNoteParams;
     [READ_COMMANDS.OPEN_ROOM_MEMBERS_PAGE]: Parameters.OpenRoomMembersPageParams;
-    [READ_COMMANDS.SEARCH_FOR_REPORTS]: Parameters.SearchForReportsParams;
-    [READ_COMMANDS.SEARCH_FOR_ROOMS_TO_MENTION]: Parameters.SearchForRoomsToMentionParams;
     [READ_COMMANDS.SEND_PERFORMANCE_TIMING]: Parameters.SendPerformanceTimingParams;
     [READ_COMMANDS.GRAPHITE]: Parameters.GraphiteParams;
     [READ_COMMANDS.GET_ROUTE]: Parameters.GetRouteParams;
@@ -1220,7 +1216,8 @@ const SIDE_EFFECT_REQUEST_COMMANDS = {
     CONNECT_POLICY_TO_QUICKBOOKS_DESKTOP: 'ConnectPolicyToQuickbooksDesktop',
     MERGE_INTO_ACCOUNT_AND_LOGIN: 'MergeIntoAccountAndLogIn',
     SEARCH: 'Search',
-
+    SEARCH_FOR_ROOMS_TO_MENTION: 'SearchForRoomsToMention',
+    SEARCH_FOR_REPORTS: 'SearchForReports',
     // PayMoneyRequestOnSearch only works online (pattern C) and we need to play the success sound only when the request is successful
     PAY_MONEY_REQUEST_ON_SEARCH: 'PayMoneyRequestOnSearch',
     LOG_OUT: 'LogOut',
@@ -1246,6 +1243,8 @@ type SideEffectRequestCommandParameters = {
     [SIDE_EFFECT_REQUEST_COMMANDS.CONNECT_AS_DELEGATE]: Parameters.ConnectAsDelegateParams;
     [SIDE_EFFECT_REQUEST_COMMANDS.DISCONNECT_AS_DELEGATE]: EmptyObject;
     [SIDE_EFFECT_REQUEST_COMMANDS.COMPLETE_HYBRID_APP_ONBOARDING]: EmptyObject;
+    [SIDE_EFFECT_REQUEST_COMMANDS.SEARCH_FOR_REPORTS]: Parameters.SearchForReportsParams;
+    [SIDE_EFFECT_REQUEST_COMMANDS.SEARCH_FOR_ROOMS_TO_MENTION]: Parameters.SearchForRoomsToMentionParams;
     [SIDE_EFFECT_REQUEST_COMMANDS.CONNECT_POLICY_TO_QUICKBOOKS_DESKTOP]: Parameters.ConnectPolicyToQuickBooksDesktopParams;
     [SIDE_EFFECT_REQUEST_COMMANDS.PAY_MONEY_REQUEST_ON_SEARCH]: Parameters.PayMoneyRequestOnSearchParams;
     [SIDE_EFFECT_REQUEST_COMMANDS.MERGE_INTO_ACCOUNT_AND_LOGIN]: Parameters.MergeIntoAccountAndLogInParams;

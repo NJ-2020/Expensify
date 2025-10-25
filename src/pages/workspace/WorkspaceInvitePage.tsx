@@ -17,7 +17,7 @@ import useThemeStyles from '@hooks/useThemeStyles';
 import {setWorkspaceInviteMembersDraft} from '@libs/actions/Policy/Member';
 import {clearErrors, openWorkspaceInvitePage as policyOpenWorkspaceInvitePage, setWorkspaceErrors} from '@libs/actions/Policy/Policy';
 import {searchInServer} from '@libs/actions/Report';
-import {READ_COMMANDS} from '@libs/API/types';
+import {READ_COMMANDS, SIDE_EFFECT_REQUEST_COMMANDS} from '@libs/API/types';
 import {canUseTouchScreen} from '@libs/DeviceCapabilities';
 import HttpUtils from '@libs/HttpUtils';
 import {appendCountryCode} from '@libs/LoginUtils';
@@ -259,7 +259,7 @@ function WorkspaceInvitePage({route, policy}: WorkspaceInvitePageProps) {
         if (!isValid) {
             return;
         }
-        HttpUtils.cancelPendingRequests(READ_COMMANDS.SEARCH_FOR_REPORTS);
+        HttpUtils.cancelPendingRequests(SIDE_EFFECT_REQUEST_COMMANDS.SEARCH_FOR_REPORTS);
 
         const invitedEmailsToAccountIDs: InvitedEmailsToAccountIDs = {};
         selectedOptions.forEach((option) => {

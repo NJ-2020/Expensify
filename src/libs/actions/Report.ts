@@ -58,7 +58,7 @@ import type {
 } from '@libs/API/parameters';
 import type ExportReportCSVParams from '@libs/API/parameters/ExportReportCSVParams';
 import type UpdateRoomVisibilityParams from '@libs/API/parameters/UpdateRoomVisibilityParams';
-import {READ_COMMANDS, WRITE_COMMANDS} from '@libs/API/types';
+import {READ_COMMANDS, SIDE_EFFECT_REQUEST_COMMANDS, WRITE_COMMANDS} from '@libs/API/types';
 import * as ApiUtils from '@libs/ApiUtils';
 import * as CollectionUtils from '@libs/CollectionUtils';
 import type {CustomRNImageManipulatorResult} from '@libs/cropOrRotateImage/types';
@@ -4488,13 +4488,17 @@ function searchForReports(searchInput: string, policyID?: string) {
 
     // We want to cancel all pending SearchForReports API calls before making another one
     if (!policyID) {
-        HttpUtils.cancelPendingRequests(READ_COMMANDS.SEARCH_FOR_REPORTS);
+        HttpUtils.cancelPendingRequests(SIDE_EFFECT_REQUEST_COMMANDS.SEARCH_FOR_REPORTS);
     }
 
-    API.read(policyID ? READ_COMMANDS.SEARCH_FOR_ROOMS_TO_MENTION : READ_COMMANDS.SEARCH_FOR_REPORTS, policyID ? searchForRoomToMentionParams : searchForReportsParams, {
-        successData,
-        failureData,
-    });
+    API.makeRequestWithSideEffects(
+        policyID ? SIDE_EFFECT_REQUEST_COMMANDS.SEARCH_FOR_ROOMS_TO_MENTION : SIDE_EFFECT_REQUEST_COMMANDS.SEARCH_FOR_REPORTS,
+        policyID ? searchForRoomToMentionParams : searchForReportsParams,
+        {
+            successData,
+            failureData,
+        },
+    );
 }
 
 function searchInServer(searchInput: string, policyID?: string) {

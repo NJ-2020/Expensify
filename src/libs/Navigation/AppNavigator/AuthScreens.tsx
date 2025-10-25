@@ -26,7 +26,7 @@ import useTheme from '@hooks/useTheme';
 import {connect} from '@libs/actions/Delegate';
 import setFullscreenVisibility from '@libs/actions/setFullscreenVisibility';
 import {init, isClientTheLeader} from '@libs/ActiveClientManager';
-import {READ_COMMANDS} from '@libs/API/types';
+import {READ_COMMANDS, SIDE_EFFECT_REQUEST_COMMANDS} from '@libs/API/types';
 import HttpUtils from '@libs/HttpUtils';
 import KeyboardShortcut from '@libs/KeyboardShortcut';
 import Log from '@libs/Log';
@@ -134,7 +134,7 @@ const modalScreenListenersWithCancelSearch = {
     ...modalScreenListeners,
     beforeRemove: () => {
         modalScreenListeners.beforeRemove();
-        HttpUtils.cancelPendingRequests(READ_COMMANDS.SEARCH_FOR_REPORTS);
+        HttpUtils.cancelPendingRequests(SIDE_EFFECT_REQUEST_COMMANDS.SEARCH_FOR_REPORTS);
     },
 };
 

@@ -12,7 +12,7 @@ import {isEmptyObject} from '@src/types/utils/EmptyObject';
 import {translateLocal} from './Localize';
 import {areEmailsFromSamePrivateDomain} from './LoginUtils';
 import {parsePhoneNumber} from './PhoneNumber';
-import {generateAccountID} from './UserUtils';
+import {generateAccountID, getDefaultAvatarURL} from './UserUtils';
 
 type FirstAndLastName = {
     firstName: string;
@@ -210,6 +210,7 @@ function getPersonalDetailsOnyxDataForOptimisticUsers(
             accountID,
             displayName: formatPhoneNumber(login),
             isOptimisticPersonalDetail: true,
+            avatar: getDefaultAvatarURL(accountID, login),
         };
 
         /**
