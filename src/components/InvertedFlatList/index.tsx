@@ -1,6 +1,7 @@
 import React, {useEffect, useRef} from 'react';
 import type {NativeScrollEvent, NativeSyntheticEvent} from 'react-native';
-import {DeviceEventEmitter} from 'react-native';
+import {DeviceEventEmitter, StyleSheet} from 'react-native';
+import useThemeStyles from '@hooks/useThemeStyles';
 import CONST from '@src/CONST';
 import BaseInvertedFlatList from './BaseInvertedFlatList';
 import type {BaseInvertedFlatListProps} from './BaseInvertedFlatList';
@@ -12,6 +13,7 @@ function InvertedFlatList<T>({onScroll: onScrollProp = () => {}, ref, ...props}:
     const lastScrollEvent = useRef<number | null>(null);
     const scrollEndTimeout = useRef<NodeJS.Timeout | null>(null);
     const updateInProgress = useRef<boolean>(false);
+    const styles = useThemeStyles();
 
     useEffect(
         () => () => {
@@ -89,6 +91,7 @@ function InvertedFlatList<T>({onScroll: onScrollProp = () => {}, ref, ...props}:
             ref={ref}
             onScroll={handleScroll}
             CellRendererComponent={CellRendererComponent}
+            contentContainerStyle={StyleSheet.compose(props.contentContainerStyle, styles.justifyContentEnd)}
         />
     );
 }
