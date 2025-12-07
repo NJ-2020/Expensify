@@ -1,7 +1,6 @@
 // The action sheet is only used on native platforms (iOS and Android)
 // On all other platforms, the action sheet is implemented using the Animated.ScrollView
 import React from 'react';
-import {StyleSheet} from 'react-native';
 import Reanimated from 'react-native-reanimated';
 import useThemeStyles from '@hooks/useThemeStyles';
 import {Actions, ActionSheetAwareScrollViewContext, ActionSheetAwareScrollViewProvider} from './ActionSheetAwareScrollViewContext';
@@ -17,7 +16,7 @@ function ActionSheetAwareScrollView({children, ref, ...restProps}: ActionSheetAw
             // eslint-disable-next-line react/jsx-props-no-spreading
             {...restProps}
             ref={onRef}
-            // contentContainerStyle={[restProps.contentContainerStyle, restProps.horizontal ? styles.flexRowReverse : styles.flexColumnReverse]}
+            contentContainerStyle={[restProps.contentContainerStyle, restProps.horizontal ? styles.flexRowReverse : styles.flexColumnReverse]}
         >
             {children}
         </Reanimated.ScrollView>
