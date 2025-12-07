@@ -1,8 +1,6 @@
 import React from 'react';
-import {StyleSheet} from 'react-native';
 import FlatList from '@components/FlatList';
 import useFlatListScrollKey from '@hooks/useFlatListScrollKey';
-import useThemeStyles from '@hooks/useThemeStyles';
 import CellRendererComponent from './CellRendererComponent';
 import shouldRemoveClippedSubviews from './shouldRemoveClippedSubviews';
 import type {InvertedFlatListProps} from './types';
@@ -40,7 +38,6 @@ function InvertedFlatList<T>({
         renderItem,
         ref,
     });
-    const styles = useThemeStyles();
 
     return (
         <FlatList<T>
@@ -55,7 +52,6 @@ function InvertedFlatList<T>({
             onStartReached={handleStartReached}
             CellRendererComponent={CellRendererComponent}
             removeClippedSubviews={shouldRemoveClippedSubviews}
-            contentContainerStyle={StyleSheet.compose(restProps.contentContainerStyle, styles.justifyContentEnd)}
         />
     );
 }
