@@ -16,7 +16,7 @@ function ActionSheetAwareScrollView({children, ref, ...restProps}: ActionSheetAw
             // eslint-disable-next-line react/jsx-props-no-spreading
             {...restProps}
             ref={onRef}
-            contentContainerStyle={[restProps.contentContainerStyle, restProps.horizontal ? styles.flexRowReverse : styles.flexColumnReverse]}
+            contentContainerStyle={[restProps.contentContainerStyle, restProps.horizontal ? styles.flexRowReverse : styles.flexColumnReverse, styles.justifyContentEnd]}
         >
             {children}
         </Reanimated.ScrollView>
