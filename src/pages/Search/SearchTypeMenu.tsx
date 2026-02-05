@@ -71,6 +71,7 @@ function SearchTypeMenu({queryJSON}: SearchTypeMenuProps) {
         'Bank',
         'User',
         'Folder',
+        'ExpensifyCard',
     ] as const);
     const {showDeleteModal} = useDeleteSavedSearch();
     const [allPolicies] = useOnyx(ONYXKEYS.COLLECTION.POLICY, {canBeMissing: true});
@@ -267,12 +268,14 @@ function SearchTypeMenu({queryJSON}: SearchTypeMenuProps) {
                                                 Navigation.navigate(ROUTES.SEARCH_ROOT.getRoute({query: item.searchQuery}));
                                             });
 
+                                            const title = item.title ?? translate(item.translationPath);
+
                                             return (
                                                 <MenuItem
                                                     key={item.key}
                                                     disabled={false}
                                                     interactive
-                                                    title={translate(item.translationPath)}
+                                                    title={title}
                                                     badgeStyle={styles.todoBadge}
                                                     icon={icon}
                                                     iconWidth={variables.iconSizeNormal}
