@@ -8,56 +8,65 @@ import ONYXKEYS from '@src/ONYXKEYS';
 import {isEmptyObject} from '@src/types/utils/EmptyObject';
 import type {CacheAttachmentProps, GetCachedAttachmentProps, RemoveCachedAttachmentProps} from './types';
 
-async function fetchExternalAttachment(source: string): Promise<Response> {
-    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-        const image = new Image();
-        image.crossOrigin = 'anonymous';
-        image.onload = () => resolve(image);
-        image.onerror = () => reject(new Error(`Failed to load image: ${source}`));
-        image.src = source;
-    });
+let currentCachingUrl = '';
 
-    if (img.naturalWidth === 0 || img.naturalHeight === 0) throw new Error('Image has zero dimensions');
+async function fetchExternalAttachment(source: string): Promise<string> {
+    try {
+        const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+            const image = new Image();
+            image.crossOrigin = 'anonymous';
+            image.onload = () => resolve(image);
+            image.onerror = () => {
+                reject(new Error(`Failed to load image: ${source}`));
+            };
+            image.src = source;
+        });
 
-    const canvas = document.createElement('canvas');
-    canvas.width = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('Failed to get canvas context');
-    ctx.drawImage(img, 0, 0);
+        await img.decode();
 
-    const blob = await new Promise<Blob>((resolve, reject) => {
-        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Canvas toBlob returned null'))));
-    });
+        if (img.naturalWidth === 0 || img.naturalHeight === 0) {
+            throw new Error('Image has zero dimensions');
+        }
 
-    const response = new Response(blob, {
-        headers: {'Content-Type': blob.type || 'image/png'},
-    });
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('Failed to get canvas context');
+        ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight);
 
-    return response;
+        const blob = await new Promise<Blob>((resolve, reject) => {
+            canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob failed'))));
+        });
+
+        return URL.createObjectURL(blob);
+    } catch {
+        throw new Error('Failed to fetch the attachment');
+    }
 }
 
 async function cacheAttachment({attachmentID, source}: CacheAttachmentProps): Promise<string | undefined> {
-    const uri = source.uri;
+    let uri = source.uri;
     if (!uri) {
         return;
     }
 
     const isAuthRemoteAttachment = !isEmptyObject(source.headers) && !attachmentID;
-    const isMarkdownAttachment = !isEmptyObject(source.headers) && !isLocalFile(source.uri);
+    const isMarkdownAttachment = isEmptyObject(source.headers) && !isLocalFile(source.uri);
 
     // If both are empty, then return early
     if (!isAuthRemoteAttachment && !attachmentID) {
         return;
     }
 
+    currentCachingUrl = uri;
+
     try {
-        let response: Response;
         if (isMarkdownAttachment) {
-            response = await fetchExternalAttachment(uri);
-        } else {
-            response = await fetch(uri, isAuthRemoteAttachment ? {headers: source.headers} : {});
+            uri = await fetchExternalAttachment(uri);
         }
+
+        const response = await fetch(uri, !isEmptyObject(source.headers) ? {headers: source.headers} : {});
         if (!response.ok) {
             throw new Error('[AttachmentCache] Failed to fetch attachment');
         }
@@ -72,19 +81,24 @@ async function cacheAttachment({attachmentID, source}: CacheAttachmentProps): Pr
             throw new Error('[AttachmentCache] Unsupported file type, skipping cache');
         }
 
+        const cachedAttachment = response.clone();
+
         if (isAuthRemoteAttachment) {
-            await CacheAPI.put(CONST.CACHE_NAME.AUTH_IMAGES, uri, response.clone());
+            await CacheAPI.put(CONST.CACHE_NAME.AUTH_IMAGES, uri, cachedAttachment);
+            currentCachingUrl = '';
         } else if (attachmentID) {
-            await CacheAPI.put(CONST.CACHE_NAME.ATTACHMENTS, attachmentID, response.clone());
+            await CacheAPI.put(CONST.CACHE_NAME.ATTACHMENTS, attachmentID, cachedAttachment);
             await Onyx.set(`${ONYXKEYS.COLLECTION.ATTACHMENT}${attachmentID}`, {
                 attachmentID,
-                remoteSource: isLocalFile(uri) ? '' : uri,
+                remoteSource: isMarkdownAttachment ? source.uri : undefined,
             });
+            currentCachingUrl = '';
         }
 
         const cachedSource = await response.blob();
         return URL.createObjectURL(cachedSource);
     } catch (error) {
+        currentCachingUrl = '';
         throw new Error('[AttachmentCache] Failed to cache attachment');
     }
 }
@@ -94,12 +108,18 @@ async function getCachedAttachment({attachmentID, attachment, source}: GetCached
         return;
     }
 
-    const isAuthRemoteAttachment = !isEmptyObject(source.headers) && !attachmentID;
     const imageSource = source.uri;
+    const isCachingInProgress = currentCachingUrl === imageSource;
 
-    // For non-auth remote attachments, check if the cached source is stale and re-cache if needed
-    if (!isAuthRemoteAttachment) {
-        const isStale = attachment?.remoteSource && attachment.remoteSource !== imageSource;
+    if (isCachingInProgress) {
+        return;
+    }
+
+    const isAuthRemoteAttachment = !isEmptyObject(source.headers) && !attachmentID;
+    const isMarkdownAttachment = isEmptyObject(source.headers) && !isLocalFile(source.uri);
+    // For markdown attachments, check if the cached source is stale and re-cache if needed
+    if (isMarkdownAttachment && attachment?.remoteSource) {
+        const isStale = attachment.remoteSource !== imageSource;
         if (isStale) {
             const cachedUri = await cacheAttachment({attachmentID, source: {uri: imageSource}}).catch((error) => {
                 Log.hmmm('[AttachmentCache] Failed to re-cache markdown attachment', {error});
@@ -116,6 +136,7 @@ async function getCachedAttachment({attachmentID, attachment, source}: GetCached
     }
     const cachedAttachment = await CacheAPI.get(cacheName, cacheKey);
     const isUncached = !cachedAttachment;
+    console.log('isUncached', isUncached);
     if (isUncached) {
         const cachedUri = await cacheAttachment({attachmentID, source}).catch((error) => {
             Log.hmmm('[AttachmentCache] Failed to cache attachment', {error});

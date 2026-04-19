@@ -35,7 +35,7 @@ function useCachedImageSource(source: ImageSource | undefined): ImageSource | nu
             return;
         }
 
-        if (attachmentID && attachmentMetadata.status === 'loading') {
+        if (attachmentMetadata.status === 'loading') {
             return;
         }
 
