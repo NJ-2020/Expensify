@@ -3,17 +3,14 @@ import {useContext, useEffect, useState} from 'react';
 import {AttachmentIDContext} from '@components/Attachments/AttachmentIDContext';
 import useOnyx from '@hooks/useOnyx';
 import {getCachedAttachment} from '@libs/actions/Attachment';
+import CacheAPI from '@libs/CacheAPI';
 import Log from '@libs/Log';
 import CONST from '@src/CONST';
 import ONYXKEYS from '@src/ONYXKEYS';
 
-const clearAuthImagesCache = async () => {
-    if (!('caches' in window)) {
-        return;
-    }
-
+const clearCachedAttachments = async () => {
     try {
-        await caches.delete(CONST.CACHE_NAME.AUTH_IMAGES);
+        await Promise.all([CacheAPI.clear(CONST.CACHE_NAME.AUTH_IMAGES), CacheAPI.clear(CONST.CACHE_NAME.ATTACHMENTS)]);
     } catch (error) {
         Log.alert('[AuthImageCache] Error clearing auth image cache:', {message: (error as Error).message});
     }
@@ -94,4 +91,4 @@ function useCachedImageSource(source: ImageSource | undefined): ImageSource | nu
 }
 
 export default useCachedImageSource;
-export {clearAuthImagesCache};
+export {clearCachedAttachments};

@@ -19,13 +19,12 @@ function useCachedImageSource(source: ImageSource | undefined): ImageSource | nu
         setCachedUri(null);
         setHasError(false);
 
-        // On native, expo-image handles auth headers natively — no caching needed
-        // Only cache non-auth attachments (images with attachmentID but no headers)
-        if (!attachmentID || hasHeaders || !uri) {
+        // On native, expo-image handles auth attachments natively — no caching needed
+        if (!attachmentID || !uri) {
             return;
         }
 
-        if (attachmentID && attachmentMetadata.status === 'loading') {
+        if (attachmentMetadata.status === 'loading') {
             return;
         }
 
@@ -56,13 +55,7 @@ function useCachedImageSource(source: ImageSource | undefined): ImageSource | nu
         };
     }, [uri, hasHeaders, attachmentID, attachment, source]);
 
-    // Auth images (with headers) are passed through directly — expo-image
-    // handles headers natively on React Native, so no caching needed
-    if (hasHeaders) {
-        return source;
-    }
-
-    // Non-auth images without attachmentID pass through as-is
+    // Skip if there's no attachmentID, because expo-image already handle it natively
     if (!attachmentID) {
         return source;
     }

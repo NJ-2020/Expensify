@@ -2,6 +2,7 @@ import RNFetchBlob from 'react-native-blob-util';
 import RNFS from 'react-native-fs';
 import Onyx from 'react-native-onyx';
 import {getImageCacheFileExtension} from '@libs/AttachmentUtils';
+import {isLocalFile} from '@libs/fileDownload/FileUtils';
 import Log from '@libs/Log';
 import CONST from '@src/CONST';
 import ONYXKEYS from '@src/ONYXKEYS';
@@ -80,26 +81,27 @@ async function cacheAttachment({attachmentID, source, mimeType}: CacheAttachment
 }
 
 async function getCachedAttachment({attachmentID, attachment, source}: GetCachedAttachmentProps) {
-    if (isEmptyObject(source) || !source.uri || !isEmptyObject(source.headers)) {
+    if (isEmptyObject(source) || !source.uri) {
         return;
     }
     const imageSource = source.uri;
 
-    if (!attachmentID) {
-        return imageSource;
-    }
+    const isMarkdownAttachment = isEmptyObject(source.headers) && !isLocalFile(imageSource);
 
-    const isStale = attachment ? attachment?.remoteSource && attachment.remoteSource !== imageSource : false;
-    if (isStale) {
-        // Only re-cache the [markdown-attachment] if it's outdated
-        const cachedUri = await cacheAttachment({attachmentID, source: {uri: imageSource}}).catch(() => {
-            throw new Error('[AttachmentCache] Failed to re-cache markdown attachment');
-        });
-        return cachedUri;
+    // For markdown attachments, check if the cached source is stale and re-cache if needed
+    if (isMarkdownAttachment && attachment?.remoteSource) {
+        const isStale = attachment.remoteSource !== imageSource;
+        if (isStale) {
+            const cachedUri = await cacheAttachment({attachmentID, source: {uri: imageSource}}).catch(() => {
+                Log.hmmm('[AttachmentCache] Failed to re-cache markdown attachment');
+                return imageSource;
+            });
+            return cachedUri;
+        }
     }
 
     const cachedSource = attachment?.source;
-    if (cachedSource) {
+    if (cachedSource && (await RNFS.exists(cachedSource))) {
         return cachedSource;
     }
 

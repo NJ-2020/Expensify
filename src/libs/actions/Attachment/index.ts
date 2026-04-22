@@ -116,7 +116,7 @@ async function getCachedAttachment({attachmentID, attachment, source}: GetCached
     }
 
     const isAuthRemoteAttachment = !isEmptyObject(source.headers) && !attachmentID;
-    const isMarkdownAttachment = isEmptyObject(source.headers) && !isLocalFile(source.uri);
+    const isMarkdownAttachment = isEmptyObject(source.headers) && !isLocalFile(imageSource);
     // For markdown attachments, check if the cached source is stale and re-cache if needed
     if (isMarkdownAttachment && attachment?.remoteSource) {
         const isStale = attachment.remoteSource !== imageSource;
@@ -136,7 +136,6 @@ async function getCachedAttachment({attachmentID, attachment, source}: GetCached
     }
     const cachedAttachment = await CacheAPI.get(cacheName, cacheKey);
     const isUncached = !cachedAttachment;
-    console.log('isUncached', isUncached);
     if (isUncached) {
         const cachedUri = await cacheAttachment({attachmentID, source}).catch((error) => {
             Log.hmmm('[AttachmentCache] Failed to cache attachment', {error});
