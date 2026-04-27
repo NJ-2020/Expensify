@@ -3,18 +3,8 @@ import {useContext, useEffect, useState} from 'react';
 import {AttachmentIDContext} from '@components/Attachments/AttachmentIDContext';
 import useOnyx from '@hooks/useOnyx';
 import {getCachedAttachment} from '@libs/actions/Attachment';
-import CacheAPI from '@libs/CacheAPI';
 import Log from '@libs/Log';
-import CONST from '@src/CONST';
 import ONYXKEYS from '@src/ONYXKEYS';
-
-const clearCachedAttachments = async () => {
-    try {
-        await Promise.all([CacheAPI.clear(CONST.CACHE_NAME.AUTH_IMAGES), CacheAPI.clear(CONST.CACHE_NAME.ATTACHMENTS)]);
-    } catch (error) {
-        Log.alert('[AuthImageCache] Error clearing auth image cache:', {message: (error as Error).message});
-    }
-};
 
 function useCachedImageSource(source: ImageSource | undefined): ImageSource | null | undefined {
     const uri = typeof source === 'object' ? source.uri : undefined;
@@ -25,7 +15,7 @@ function useCachedImageSource(source: ImageSource | undefined): ImageSource | nu
     const [attachment, attachmentMetadata] = useOnyx(`${ONYXKEYS.COLLECTION.ATTACHMENT}${attachmentID}`);
 
     useEffect(() => {
-        setCachedUri(null);
+        // setCachedUri(null);
         setHasError(false);
 
         if ((!hasHeaders && !attachmentID) || !uri) {
@@ -53,12 +43,11 @@ function useCachedImageSource(source: ImageSource | undefined): ImageSource | nu
                     URL.revokeObjectURL(cachedSource);
                 }
             })
-            .catch(() => {
+            .catch((error) => {
                 if (!revoked) {
                     setHasError(true);
                 }
-                // TODO: Improve error loging
-                Log.hmmm('[AttachmentCache] Failed to get cached attachment');
+                Log.hmmm('[AttachmentCache] Failed to get cached attachment', {message: (error as Error).message});
             });
 
         return () => {
@@ -69,8 +58,7 @@ function useCachedImageSource(source: ImageSource | undefined): ImageSource | nu
         };
     }, [uri, hasHeaders, source?.headers, attachment, attachmentMetadata.status, attachmentID, source]);
 
-    // Images without headers are cached natively by the browser,
-    // so pass them through as-is — no Cache API needed
+    // Skip if there's no attachmentID and headers
     if (!hasHeaders && !attachmentID) {
         return source;
     }
@@ -91,4 +79,3 @@ function useCachedImageSource(source: ImageSource | undefined): ImageSource | nu
 }
 
 export default useCachedImageSource;
-export {clearCachedAttachments};

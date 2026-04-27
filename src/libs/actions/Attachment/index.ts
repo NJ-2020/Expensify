@@ -99,12 +99,16 @@ async function cacheAttachment({attachmentID, source}: CacheAttachmentProps): Pr
         return URL.createObjectURL(cachedSource);
     } catch (error) {
         currentCachingUrl = '';
+
+        if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+            await clearCachedAttachments();
+        }
         throw new Error('[AttachmentCache] Failed to cache attachment');
     }
 }
 
 async function getCachedAttachment({attachmentID, attachment, source}: GetCachedAttachmentProps): Promise<string | undefined> {
-    if (isEmptyObject(source) || !source.uri || source.uri.startsWith('blob:')) {
+    if (isEmptyObject(source) || !source.uri) {
         return;
     }
 
@@ -122,7 +126,7 @@ async function getCachedAttachment({attachmentID, attachment, source}: GetCached
         const isStale = attachment.remoteSource !== imageSource;
         if (isStale) {
             const cachedUri = await cacheAttachment({attachmentID, source: {uri: imageSource}}).catch((error) => {
-                Log.hmmm('[AttachmentCache] Failed to re-cache markdown attachment', {error});
+                Log.hmmm('[AttachmentCache] Failed to re-cache markdown attachment', {message: (error as Error).message});
                 return imageSource;
             });
             return cachedUri;
@@ -137,19 +141,12 @@ async function getCachedAttachment({attachmentID, attachment, source}: GetCached
     const cachedAttachment = await CacheAPI.get(cacheName, cacheKey);
     const isUncached = !cachedAttachment;
     if (isUncached) {
-        const cachedUri = await cacheAttachment({attachmentID, source}).catch((error) => {
-            Log.hmmm('[AttachmentCache] Failed to cache attachment', {error});
-            return imageSource;
-        });
+        const cachedUri = await cacheAttachment({attachmentID, source});
         return cachedUri;
     }
 
-    try {
-        const attachmentFile = await cachedAttachment.blob();
-        return URL.createObjectURL(attachmentFile);
-    } catch (error) {
-        throw new Error('[AttachmentCache] Failed to get cached attachment', {cause: error});
-    }
+    const attachmentFile = await cachedAttachment.blob();
+    return URL.createObjectURL(attachmentFile);
 }
 
 async function removeCachedAttachment({attachmentID}: RemoveCachedAttachmentProps) {
@@ -157,16 +154,16 @@ async function removeCachedAttachment({attachmentID}: RemoveCachedAttachmentProp
         await CacheAPI.remove(CONST.CACHE_NAME.ATTACHMENTS, attachmentID);
         await Onyx.set(`${ONYXKEYS.COLLECTION.ATTACHMENT}${attachmentID}`, null);
     } catch (error) {
-        throw new Error('[AttachmentCache] Failed to remove cached attachment', {cause: error});
+        Log.hmmm(`[AttachmentCache] Failed to remove cached attachment: ${attachmentID}`, {message: (error as Error).message});
     }
 }
 
 async function clearCachedAttachments() {
     try {
-        await CacheAPI.clear();
+        await Promise.all([CacheAPI.clear(CONST.CACHE_NAME.AUTH_IMAGES), CacheAPI.clear(CONST.CACHE_NAME.ATTACHMENTS)]);
         await Onyx.setCollection(ONYXKEYS.COLLECTION.ATTACHMENT, {});
     } catch (error) {
-        throw new Error('[AttachmentCache] Failed to clear cached attachments', {cause: error});
+        Log.hmmm('[AttachmentCache] Failed to clear cached attachments', {message: (error as Error).message});
     }
 }
 

@@ -42,12 +42,11 @@ function useCachedImageSource(source: ImageSource | undefined): ImageSource | nu
                     setCachedUri(cachedSource);
                 }
             })
-            .catch(() => {
+            .catch((error) => {
                 if (!revoked) {
                     setHasError(true);
                 }
-                // TODO: Improve error loging
-                Log.hmmm('[AttachmentCache] Failed to get cached attachment');
+                Log.hmmm('[AttachmentCache] Failed to get cached attachment', {message: (error as Error).message});
             });
 
         return () => {

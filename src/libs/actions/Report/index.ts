@@ -703,8 +703,8 @@ function addActions({
         commandName = WRITE_COMMANDS.ADD_ATTACHMENT;
         const attachment = buildOptimisticAddCommentReportAction({text, file, reportID, attachmentID});
         attachmentAction = attachment.reportAction;
-        cacheAttachment({attachmentID, source: {uri: file.uri ?? ''}, mimeType: file.type}).catch((error) => {
-            Log.hmmm('[AttachmentCache] Failed to cache attachment', {error});
+        cacheAttachment({attachmentID, source: {uri: file.uri ?? ''}, fileType: file.type}).catch((error) => {
+            Log.hmmm('[AttachmentCache] Failed to cache attachment', {message: (error as Error).message});
         });
     }
 
@@ -739,7 +739,8 @@ function addActions({
 
     for (const attachment of attachments) {
         cacheAttachment({attachmentID: attachment.attachmentID, source: {uri: attachment.uri ?? ''}}).catch((error) => {
-            Log.hmmm('[AttachmentCache] Failed to cache markdown attachment', {error});
+            console.log('error', error);
+            Log.hmmm('[AttachmentCache] Failed to cache markdown attachment', {message: (error as Error).message});
         });
     }
 

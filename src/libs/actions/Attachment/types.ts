@@ -10,7 +10,7 @@ type CacheAttachmentProps = {
     source: ImageSource;
 
     /** MIME type of the given attachment (native-only) */
-    mimeType?: string;
+    fileType?: string;
 };
 
 type GetCachedAttachmentProps = {
