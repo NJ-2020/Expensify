@@ -1,6 +1,6 @@
 import {Image as ExpoImage} from 'expo-image';
 import type {ImageProps as ExpoImageProps, ImageLoadEventData} from 'expo-image';
-import React, {useCallback, useContext, useEffect} from 'react';
+import React, {useCallback, useContext, useEffect, useState} from 'react';
 import type {AttachmentSource} from '@components/Attachments/types';
 import useCachedImageSource from '@hooks/useCachedImageSource';
 import getImageRecyclingKey from '@libs/getImageRecyclingKey';
@@ -18,8 +18,14 @@ function BaseImage({onLoad, onLoadStart, source, style, ...props}: BaseImageProp
         }
 
         setAttachmentLoaded?.(source as AttachmentSource, false);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    // useEffect(() => {
+    //     console.log('mounted!!');
+    //     return () => {
+    //         console.log('Image remounted!!');
+    //     };
+    // }, []);
 
     useEffect(() => {
         if (!source) {

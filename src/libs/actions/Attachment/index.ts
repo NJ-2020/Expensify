@@ -10,6 +10,8 @@ import type {CacheAttachmentProps, GetCachedAttachmentProps, RemoveCachedAttachm
 
 let currentCachingUrl = '';
 
+const pendingCaches = new Map<string, Promise<string | undefined>>();
+
 async function fetchExternalAttachment(source: string): Promise<string> {
     try {
         const img = await new Promise<HTMLImageElement>((resolve, reject) => {
@@ -59,52 +61,65 @@ async function cacheAttachment({attachmentID, source}: CacheAttachmentProps): Pr
         return;
     }
 
-    currentCachingUrl = uri;
-
-    try {
-        if (isMarkdownAttachment) {
-            uri = await fetchExternalAttachment(uri);
-        }
-
-        const response = await fetch(uri, !isEmptyObject(source.headers) ? {headers: source.headers} : {});
-        if (!response.ok) {
-            throw new Error('[AttachmentCache] Failed to fetch attachment');
-        }
-
-        const contentType = response.headers.get('content-type') ?? '';
-        if (contentType === 'image/heic') {
-            throw new Error('[AttachmentCache] HEIC is not supported, skipping cache');
-        }
-
-        const fileExtension = getImageCacheFileExtension(contentType);
-        if (!fileExtension) {
-            throw new Error('[AttachmentCache] Unsupported file type, skipping cache');
-        }
-
-        const cachedAttachment = response.clone();
-
-        if (isAuthRemoteAttachment) {
-            await CacheAPI.put(CONST.CACHE_NAME.AUTH_IMAGES, uri, cachedAttachment);
-            currentCachingUrl = '';
-        } else if (attachmentID) {
-            await CacheAPI.put(CONST.CACHE_NAME.ATTACHMENTS, attachmentID, cachedAttachment);
-            await Onyx.set(`${ONYXKEYS.COLLECTION.ATTACHMENT}${attachmentID}`, {
-                attachmentID,
-                remoteSource: isMarkdownAttachment ? source.uri : undefined,
-            });
-            currentCachingUrl = '';
-        }
-
-        const cachedSource = await response.blob();
-        return URL.createObjectURL(cachedSource);
-    } catch (error) {
-        currentCachingUrl = '';
-
-        if (error instanceof DOMException && error.name === 'QuotaExceededError') {
-            await clearCachedAttachments();
-        }
-        throw new Error('[AttachmentCache] Failed to cache attachment');
+    // If this exact URL is already being cached, return the existing promise
+    const existingPromise = pendingCaches.get(uri);
+    if (existingPromise) {
+        return existingPromise;
     }
+
+    const cachingPromise = (async () => {
+        try {
+            if (isMarkdownAttachment) {
+                uri = await fetchExternalAttachment(uri);
+            }
+
+            const response = await fetch(uri, !isEmptyObject(source.headers) ? {headers: source.headers} : {});
+            if (!response.ok) {
+                throw new Error('[AttachmentCache] Failed to fetch attachment');
+            }
+
+            const contentType = response.headers.get('content-type') ?? '';
+            if (contentType === 'image/heic') {
+                throw new Error('[AttachmentCache] HEIC is not supported, skipping cache');
+            }
+
+            const fileExtension = getImageCacheFileExtension(contentType);
+            if (!fileExtension) {
+                throw new Error('[AttachmentCache] Unsupported file type, skipping cache');
+            }
+
+            const cachedAttachment = response.clone();
+
+            if (isAuthRemoteAttachment) {
+                await CacheAPI.put(CONST.CACHE_NAME.AUTH_IMAGES, uri, cachedAttachment);
+                currentCachingUrl = '';
+            } else if (attachmentID) {
+                await CacheAPI.put(CONST.CACHE_NAME.ATTACHMENTS, attachmentID, cachedAttachment);
+                await Onyx.set(`${ONYXKEYS.COLLECTION.ATTACHMENT}${attachmentID}`, {
+                    attachmentID,
+                    remoteSource: isMarkdownAttachment ? source.uri : undefined,
+                });
+                currentCachingUrl = '';
+            }
+
+            const cachedSource = await response.blob();
+            return URL.createObjectURL(cachedSource);
+        } catch (error) {
+            currentCachingUrl = '';
+
+            if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+                await clearCachedAttachments();
+            }
+            throw new Error('[AttachmentCache] Failed to cache attachment');
+        } finally {
+            pendingCaches.delete(uri);
+        }
+    })();
+
+    // Store the promise so concurrent callers can await it
+    pendingCaches.set(uri, cachingPromise);
+
+    return cachingPromise;
 }
 
 async function getCachedAttachment({attachmentID, attachment, source}: GetCachedAttachmentProps): Promise<string | undefined> {
@@ -113,10 +128,12 @@ async function getCachedAttachment({attachmentID, attachment, source}: GetCached
     }
 
     const imageSource = source.uri;
-    const isCachingInProgress = currentCachingUrl === imageSource;
 
-    if (isCachingInProgress) {
-        return;
+    // If this URL is currently being cached, wait for it to finish
+    const cachePromise = pendingCaches.get(imageSource);
+    if (cachePromise) {
+        console.log('caching is in progress');
+        return cachePromise.catch(() => imageSource);
     }
 
     const isAuthRemoteAttachment = !isEmptyObject(source.headers) && !attachmentID;

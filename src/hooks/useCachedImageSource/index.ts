@@ -1,21 +1,40 @@
 import type {ImageSource} from 'expo-image';
-import {useContext, useEffect, useState} from 'react';
+import {useContext, useEffect, useRef, useState} from 'react';
 import {AttachmentIDContext} from '@components/Attachments/AttachmentIDContext';
 import useOnyx from '@hooks/useOnyx';
 import {getCachedAttachment} from '@libs/actions/Attachment';
 import Log from '@libs/Log';
 import ONYXKEYS from '@src/ONYXKEYS';
 
+function useRevokePreviousURL(url: string | null | undefined) {
+    const ref = useRef(url);
+    useEffect(() => {
+        if (ref.current && ref.current !== url) {
+            URL.revokeObjectURL(ref.current);
+        }
+        ref.current = url;
+        return () => {
+            if (url) {
+                URL.revokeObjectURL(url);
+            }
+        };
+    }, [url]);
+}
+
 function useCachedImageSource(source: ImageSource | undefined): ImageSource | null | undefined {
     const uri = typeof source === 'object' ? source.uri : undefined;
     const hasHeaders = typeof source === 'object' && !!source.headers;
     const {attachmentID} = useContext(AttachmentIDContext);
-    const [cachedUri, setCachedUri] = useState<string | null>(null);
     const [hasError, setHasError] = useState(false);
+    const [cachedUri, setCachedUri] = useState<string | null>(null);
     const [attachment, attachmentMetadata] = useOnyx(`${ONYXKEYS.COLLECTION.ATTACHMENT}${attachmentID}`);
+    // const isRevoked = useRef(false);
+    const objectURL = useRef<string | null>(null);
+
+    useRevokePreviousURL(objectURL.current);
 
     useEffect(() => {
-        // setCachedUri(null);
+        setCachedUri(null);
         setHasError(false);
 
         if ((!hasHeaders && !attachmentID) || !uri) {
@@ -26,36 +45,27 @@ function useCachedImageSource(source: ImageSource | undefined): ImageSource | nu
             return;
         }
 
-        let revoked = false;
-        let objectURL: string | undefined;
-
         getCachedAttachment({attachmentID, attachment, source})
             .then((cachedSource) => {
                 if (!cachedSource) {
-                    if (!revoked) {
-                        setHasError(true);
-                    }
+                    // if (!isRevoked.current) {
+                    setHasError(true);
+                    // }
                     return;
                 }
-                if (!revoked) {
-                    setCachedUri(cachedSource);
-                } else {
-                    URL.revokeObjectURL(cachedSource);
-                }
+                objectURL.current = cachedSource;
+                // if (!isRevoked.current) {
+                setCachedUri(objectURL.current);
+                // } else {
+                // URL.revokeObjectURL(objectURL.current);
+                // }
             })
             .catch((error) => {
-                if (!revoked) {
-                    setHasError(true);
-                }
+                // if (!isRevoked.current) {
+                setHasError(true);
+                // }
                 Log.hmmm('[AttachmentCache] Failed to get cached attachment', {message: (error as Error).message});
             });
-
-        return () => {
-            revoked = true;
-            if (objectURL) {
-                URL.revokeObjectURL(objectURL);
-            }
-        };
     }, [uri, hasHeaders, source?.headers, attachment, attachmentMetadata.status, attachmentID, source]);
 
     // Skip if there's no attachmentID and headers
@@ -71,6 +81,11 @@ function useCachedImageSource(source: ImageSource | undefined): ImageSource | nu
 
     // Cache fetch is still in progress — return null so expo-image doesn't
     // render the image with headers (which would bypass our cache)
+
+    if (uri?.startsWith('blob:') && !cachedUri) {
+        return source;
+    }
+
     if (!cachedUri) {
         return null;
     }

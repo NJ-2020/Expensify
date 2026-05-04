@@ -39,6 +39,12 @@ function useCachedImageSource(source: ImageSource | undefined): ImageSource | nu
                     return;
                 }
                 if (!revoked) {
+                    console.log('data', {
+                        attachment,
+                        attachmentID,
+                        cachedSource,
+                        originalSource: source?.uri,
+                    });
                     setCachedUri(cachedSource);
                 }
             })

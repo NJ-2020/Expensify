@@ -38,6 +38,10 @@ async function cacheAttachment({attachmentID, source, fileType}: CacheAttachment
         const destPath = `${ATTACHMENT_DIR}/${fileName}`;
 
         try {
+            // For safety, to prevent any failures
+            if (await RNFS.exists(destPath)) {
+                await RNFS.unlink(destPath);
+            }
             await RNFS.copyFile(uri, destPath);
             await Onyx.set(`${ONYXKEYS.COLLECTION.ATTACHMENT}${attachmentID}`, {
                 attachmentID,
