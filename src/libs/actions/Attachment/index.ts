@@ -8,43 +8,39 @@ import ONYXKEYS from '@src/ONYXKEYS';
 import {isEmptyObject} from '@src/types/utils/EmptyObject';
 import type {CacheAttachmentProps, GetCachedAttachmentProps, RemoveCachedAttachmentProps} from './types';
 
-let currentCachingUrl = '';
-
 const pendingCaches = new Map<string, Promise<string | undefined>>();
 
 async function fetchExternalAttachment(source: string): Promise<string> {
-    try {
-        const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-            const image = new Image();
-            image.crossOrigin = 'anonymous';
-            image.onload = () => resolve(image);
-            image.onerror = () => {
-                reject(new Error(`Failed to load image: ${source}`));
-            };
-            image.src = source;
-        });
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const image = new Image();
+        image.crossOrigin = 'anonymous';
+        image.onload = () => resolve(image);
+        image.onerror = () => {
+            reject(new Error(`Failed to load image: ${source}`));
+        };
+        image.src = source;
+    });
 
-        await img.decode();
+    await img.decode();
 
-        if (img.naturalWidth === 0 || img.naturalHeight === 0) {
-            throw new Error('Image has zero dimensions');
-        }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) throw new Error('Failed to get canvas context');
-        ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight);
-
-        const blob = await new Promise<Blob>((resolve, reject) => {
-            canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob failed'))));
-        });
-
-        return URL.createObjectURL(blob);
-    } catch {
-        throw new Error('Failed to fetch the attachment');
+    if (img.naturalWidth === 0 || img.naturalHeight === 0) {
+        throw new Error('Image has zero dimensions');
     }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+        throw new Error('Failed to get canvas context');
+    }
+    ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight);
+
+    const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob failed'))));
+    });
+
+    return URL.createObjectURL(blob);
 }
 
 async function cacheAttachment({attachmentID, source}: CacheAttachmentProps): Promise<string | undefined> {
@@ -61,8 +57,10 @@ async function cacheAttachment({attachmentID, source}: CacheAttachmentProps): Pr
         return;
     }
 
-    // If this exact URL is already being cached, return the existing promise
-    const existingPromise = pendingCaches.get(uri);
+    const cacheKey = !isAuthRemoteAttachment && attachmentID ? attachmentID : uri;
+
+    // If this current URL is already being cached, return the existing promise
+    const existingPromise = pendingCaches.get(cacheKey);
     if (existingPromise) {
         return existingPromise;
     }
@@ -90,34 +88,30 @@ async function cacheAttachment({attachmentID, source}: CacheAttachmentProps): Pr
 
             const cachedAttachment = response.clone();
 
+            await CacheAPI.put(isAuthRemoteAttachment ? CONST.CACHE_NAME.AUTH_IMAGES : CONST.CACHE_NAME.ATTACHMENTS, cacheKey, cachedAttachment);
             if (isAuthRemoteAttachment) {
-                await CacheAPI.put(CONST.CACHE_NAME.AUTH_IMAGES, uri, cachedAttachment);
-                currentCachingUrl = '';
-            } else if (attachmentID) {
-                await CacheAPI.put(CONST.CACHE_NAME.ATTACHMENTS, attachmentID, cachedAttachment);
                 await Onyx.set(`${ONYXKEYS.COLLECTION.ATTACHMENT}${attachmentID}`, {
                     attachmentID,
                     remoteSource: isMarkdownAttachment ? source.uri : undefined,
                 });
-                currentCachingUrl = '';
             }
 
-            const cachedSource = await response.blob();
-            return URL.createObjectURL(cachedSource);
-        } catch (error) {
-            currentCachingUrl = '';
+            const cachedBlob = await response.blob();
+            const cachedSource = URL.createObjectURL(cachedBlob);
 
+            return cachedSource;
+        } catch (error) {
             if (error instanceof DOMException && error.name === 'QuotaExceededError') {
                 await clearCachedAttachments();
             }
             throw new Error('[AttachmentCache] Failed to cache attachment');
         } finally {
-            pendingCaches.delete(uri);
+            pendingCaches.delete(cacheKey);
         }
     })();
 
     // Store the promise so concurrent callers can await it
-    pendingCaches.set(uri, cachingPromise);
+    pendingCaches.set(cacheKey, cachingPromise);
 
     return cachingPromise;
 }

@@ -19,7 +19,7 @@ function useCachedImageSource(source: ImageSource | undefined): ImageSource | nu
         setCachedUri(null);
         setHasError(false);
 
-        // On native, expo-image handles auth attachments natively — no caching needed
+        // On native, expo-image handles remote/auth attachments natively — no caching needed
         if (!attachmentID || !uri) {
             return;
         }
@@ -60,7 +60,8 @@ function useCachedImageSource(source: ImageSource | undefined): ImageSource | nu
         };
     }, [uri, hasHeaders, attachmentID, attachment, source]);
 
-    // Skip if there's no attachmentID, because expo-image already handle it natively
+    // Skip if there's no attachmentID, because expo-image
+    // already handle remote attachments natively
     if (!attachmentID) {
         return source;
     }
@@ -70,7 +71,14 @@ function useCachedImageSource(source: ImageSource | undefined): ImageSource | nu
         return source;
     }
 
-    // Cache fetch is still in progress
+    // If cache fetch is still in progress and the current source
+    // is coming from local source i.e file://, return the current source
+    if (uri?.startsWith('file:') && !cachedUri) {
+        return source;
+    }
+
+    // If cache fetch is still in progress — return null so expo-image doesn't
+    // render the remote source (which would bypass our cache)
     if (!cachedUri) {
         return null;
     }

@@ -1,3 +1,4 @@
+import {useNavigation} from '@react-navigation/native';
 import type {ImageSource} from 'expo-image';
 import {useContext, useEffect, useRef, useState} from 'react';
 import {AttachmentIDContext} from '@components/Attachments/AttachmentIDContext';
@@ -6,21 +7,6 @@ import {getCachedAttachment} from '@libs/actions/Attachment';
 import Log from '@libs/Log';
 import ONYXKEYS from '@src/ONYXKEYS';
 
-function useRevokePreviousURL(url: string | null | undefined) {
-    const ref = useRef(url);
-    useEffect(() => {
-        if (ref.current && ref.current !== url) {
-            URL.revokeObjectURL(ref.current);
-        }
-        ref.current = url;
-        return () => {
-            if (url) {
-                URL.revokeObjectURL(url);
-            }
-        };
-    }, [url]);
-}
-
 function useCachedImageSource(source: ImageSource | undefined): ImageSource | null | undefined {
     const uri = typeof source === 'object' ? source.uri : undefined;
     const hasHeaders = typeof source === 'object' && !!source.headers;
@@ -28,10 +14,30 @@ function useCachedImageSource(source: ImageSource | undefined): ImageSource | nu
     const [hasError, setHasError] = useState(false);
     const [cachedUri, setCachedUri] = useState<string | null>(null);
     const [attachment, attachmentMetadata] = useOnyx(`${ONYXKEYS.COLLECTION.ATTACHMENT}${attachmentID}`);
-    // const isRevoked = useRef(false);
+    const isUnmounted = useRef(false);
     const objectURL = useRef<string | null>(null);
+    const navigation = useNavigation();
 
-    useRevokePreviousURL(objectURL.current);
+    useEffect(() => {
+        const unsubscribeFocus = navigation.addListener('blur', () => {
+            isUnmounted.current = false;
+        });
+        const unsubscribeBlur = navigation.addListener('blur', () => {
+            isUnmounted.current = true;
+
+            if ((!hasHeaders && !attachmentID) || !uri) {
+                return;
+            }
+
+            if (objectURL.current) {
+                URL.revokeObjectURL(objectURL.current);
+            }
+        });
+        return () => {
+            unsubscribeFocus();
+            unsubscribeBlur();
+        };
+    }, [navigation]);
 
     useEffect(() => {
         setCachedUri(null);
@@ -48,22 +54,26 @@ function useCachedImageSource(source: ImageSource | undefined): ImageSource | nu
         getCachedAttachment({attachmentID, attachment, source})
             .then((cachedSource) => {
                 if (!cachedSource) {
-                    // if (!isRevoked.current) {
-                    setHasError(true);
-                    // }
+                    if (!isUnmounted.current) {
+                        setHasError(true);
+                    }
                     return;
                 }
+                if (objectURL.current) {
+                    URL.revokeObjectURL(objectURL.current);
+                }
+
                 objectURL.current = cachedSource;
-                // if (!isRevoked.current) {
-                setCachedUri(objectURL.current);
-                // } else {
-                // URL.revokeObjectURL(objectURL.current);
-                // }
+                if (!isUnmounted.current) {
+                    setCachedUri(objectURL.current);
+                } else {
+                    URL.revokeObjectURL(objectURL.current);
+                }
             })
             .catch((error) => {
-                // if (!isRevoked.current) {
-                setHasError(true);
-                // }
+                if (!isUnmounted.current) {
+                    setHasError(true);
+                }
                 Log.hmmm('[AttachmentCache] Failed to get cached attachment', {message: (error as Error).message});
             });
     }, [uri, hasHeaders, source?.headers, attachment, attachmentMetadata.status, attachmentID, source]);
@@ -79,13 +89,14 @@ function useCachedImageSource(source: ImageSource | undefined): ImageSource | nu
         return source;
     }
 
-    // Cache fetch is still in progress — return null so expo-image doesn't
-    // render the image with headers (which would bypass our cache)
-
+    // If cache fetch is still in progress and the current source
+    // is coming from local source i.e blob:, return the current source
     if (uri?.startsWith('blob:') && !cachedUri) {
         return source;
     }
 
+    // If cache fetch is still in progress — return null so expo-image doesn't
+    // render the remote source (which would bypass our cache)
     if (!cachedUri) {
         return null;
     }
