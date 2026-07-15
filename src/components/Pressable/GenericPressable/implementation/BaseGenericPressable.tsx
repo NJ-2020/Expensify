@@ -1,11 +1,13 @@
 import type PressableProps from '@components/Pressable/GenericPressable/types';
 
 import useKeyboardShortcut from '@hooks/useKeyboardShortcut';
+import useResponsiveLayout from '@hooks/useResponsiveLayout';
 import useSingleExecution from '@hooks/useSingleExecution';
 import useStyleUtils from '@hooks/useStyleUtils';
 import useThemeStyles from '@hooks/useThemeStyles';
 
 import Accessibility from '@libs/Accessibility';
+import {canUseTouchScreen} from '@libs/DeviceCapabilities';
 import HapticFeedback from '@libs/HapticFeedback';
 
 import CONST from '@src/CONST';
@@ -52,6 +54,7 @@ function GenericPressable({
     const StyleUtils = useStyleUtils();
     const {isExecuting, singleExecution} = useSingleExecution();
     const isScreenReaderActive = Accessibility.useScreenReaderStatus();
+    const {shouldUseNarrowLayout} = useResponsiveLayout();
     const [hitSlop, onLayout] = Accessibility.useAutoHitSlop();
     const [isHovered, setIsHovered] = useState(false);
     const isRoleButton = [rest.accessibilityRole, rest.role].includes(CONST.ROLE.BUTTON);
@@ -197,7 +200,7 @@ function GenericPressable({
                 (state.hovered || isHovered) && StyleUtils.parseStyleFromFunction(hoverStyle, state),
                 state.pressed && StyleUtils.parseStyleFromFunction(pressStyle, state),
                 isDisabled && [StyleUtils.parseStyleFromFunction(disabledStyle, state), styles.noSelect],
-                isRoleButton && styles.userSelectNone,
+                isRoleButton && canUseTouchScreen() && shouldUseNarrowLayout && styles.userSelectNone,
             ]}
             // accessibility props
             accessibilityState={{
