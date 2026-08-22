@@ -25,7 +25,6 @@ import useThemeStyles from '@hooks/useThemeStyles';
 
 import Accessibility from '@libs/Accessibility';
 import {cleanUpMoneyRequest} from '@libs/actions/IOU/DeleteMoneyRequest';
-import {isSafari} from '@libs/Browser';
 import {isChronosOOOListAction} from '@libs/ChronosUtils';
 import ControlSelection from '@libs/ControlSelection';
 import {canUseTouchScreen, hasHoverSupport} from '@libs/DeviceCapabilities';
@@ -85,7 +84,7 @@ import {personalDetailsDisplayNameSelector} from '@selectors/PersonalDetails';
 import {deepEqual} from 'fast-equals';
 import mapValues from 'lodash/mapValues';
 import React, {useContext, useEffect, useRef, useState} from 'react';
-import {Keyboard, View} from 'react-native';
+import {Keyboard, Platform, View} from 'react-native';
 
 import type {ContextMenuAnchor} from './ContextMenu/ReportActionContextMenu';
 
@@ -546,7 +545,7 @@ function ReportActionItem({
                         withoutFocusOnSecondaryInteraction
                         accessibilityLabel={accessibilityLabel}
                         accessibilityHint={translate('accessibilityHints.chatMessage')}
-                        accessibilityRole={isSafari() && hasHoverSupport() ? undefined : CONST.ROLE.BUTTON}
+                        accessibilityRole={Platform.OS === CONST.PLATFORM.WEB && hasHoverSupport() ? undefined : CONST.ROLE.BUTTON}
                         sentryLabel={CONST.SENTRY_LABEL.REPORT.REPORT_ACTION_ITEM}
                     >
                         <Hoverable
