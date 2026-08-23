@@ -24,7 +24,7 @@ diff --git a/node_modules/@shopify/flash-list/dist/recyclerview/ViewHolderCollec
      const maybeDoSortOnFocus = useCallback(() => {
          clearPendingSort();
          if (isScrollingProgrammatically()) {
-@@ -277,14 +282,32 @@
+@@ -277,16 +282,41 @@
          const onDocKeyDown = () => {
              lastInputModalityRef.current = "keyboard";
          };
@@ -38,6 +38,13 @@ diff --git a/node_modules/@shopify/flash-list/dist/recyclerview/ViewHolderCollec
 +                container != null &&
 +                e.target instanceof Node &&
 +                container.contains(e.target);
++            // Sort eagerly when the pointer lands on a stale-ordered container:
++            // selection drags must run over natural DOM order or copied text
++            // comes out scrambled. Already-sorted containers are untouched, so
++            // the mousedown->click reorder hazard from #91059 stays fixed.
++            if (selectionAnchorInContainerRef.current) {
++                sortItems();
++            }
 +            (_a = containerRef.current) === null || _a === void 0 ? void 0 : _a.setAttribute("data-flashlist-drag-active", "");
 +        };
 +        const onDocPointerUp = () => {
@@ -54,7 +61,11 @@ diff --git a/node_modules/@shopify/flash-list/dist/recyclerview/ViewHolderCollec
          return () => {
              document.removeEventListener("keydown", onDocKeyDown, true);
              document.removeEventListener("pointerdown", onDocPointerDown, true);
+-        };
+-    }, []);
 +            document.removeEventListener("pointerup", onDocPointerUp, true);
-         };
-     }, []);
++        };
++    }, [sortItems]);
      return (React.createElement(CompatView, { ref: containerRef, style: hasData && containerStyle }, containerLayout &&
+         hasData &&
+         renderEntriesRef.current.map(([reactKey, { index }]) => {
